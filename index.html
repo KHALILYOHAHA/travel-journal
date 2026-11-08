@@ -4,13 +4,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>旅行手帳 · 東京 · 富士山</title>
-  <link rel="manifest" href="manifest.json" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-title" content="旅行手帳" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Noto+Sans+TC:wght@400;500;700&family=LXGW+WenKai+TC&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styles.css?v=2" />
 </head>
 <body>
   <div id="app">
@@ -125,7 +122,10 @@
             </div>
 
             <div class="todo-card rough-card grid-paper">
-              <h3 class="section-h">今日待辦 <span class="muted" id="calTodoSub">Day 1 · 東京</span></h3>
+              <div class="todo-head">
+                <h3 class="section-h">今日待辦 <span class="muted" id="calTodoSub">Day 1 · 東京</span></h3>
+                <button type="button" class="btn btn-ghost sm" id="btnAddTodo">＋ 加待辦</button>
+              </div>
               <ul class="todo-list" id="calTodoList"></ul>
             </div>
           </article>
@@ -300,6 +300,30 @@
     </div>
   </div>
 
-  <script src="app.js"></script>
+  <!-- Todo modal -->
+  <div id="todoModal" class="modal" hidden>
+    <div class="modal-backdrop" data-close-todo></div>
+    <div class="modal-card rough-card" role="dialog" aria-modal="true" aria-labelledby="todoModalTitle">
+      <h3 id="todoModalTitle">加待辦</h3>
+      <form id="todoForm">
+        <input type="hidden" id="todoId" />
+        <label>日期
+          <input type="date" id="todoDate" required />
+        </label>
+        <label>待辦內容
+          <input type="text" id="todoText" required placeholder="例如：換 Suica" maxlength="80" />
+        </label>
+        <label>備註（可選）
+          <input type="text" id="todoNote" placeholder="例如：機場／便利店都得" maxlength="120" />
+        </label>
+        <div class="form-actions">
+          <button type="button" class="btn btn-ghost" data-close-todo>取消</button>
+          <button type="submit" class="btn btn-scan">儲存</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="app.js?v=2"></script>
 </body>
 </html>

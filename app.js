@@ -209,7 +209,7 @@
     const todos = state.todos.filter((t) => t.date === today);
     const list = document.getElementById("calTodoList");
     if (!todos.length) {
-      list.innerHTML = `<li class="todo-item" style="cursor:default;opacity:.7"><span class="todo-text">今日暫無待辦 — 去設定或者帳本加啲計劃啦</span></li>`;
+      list.innerHTML = `<li class="todo-empty"><span class="todo-text">今日暫無待辦 — 撳「加待辦」寫低計劃啦</span></li>`;
     } else {
       list.innerHTML = todos
         .map(
@@ -217,14 +217,20 @@
         <li class="todo-item ${t.done ? "done" : ""}" data-todo="${t.id}">
           <input type="checkbox" ${t.done ? "checked" : ""} />
           <span class="check" aria-hidden="true"></span>
-          <span class="todo-text">${escapeHtml(t.text)}</span>
-          <span class="todo-meta ${t.linkedSpend ? "recorded" : ""}">${
-            t.linkedSpend
-              ? "已記帳 HKD $" + money(t.linkedSpend)
-              : t.note
-              ? escapeHtml(t.note)
-              : ""
-          }</span>
+          <div class="todo-body">
+            <span class="todo-text">${escapeHtml(t.text)}</span>
+            ${
+              t.linkedSpend
+                ? `<span class="todo-meta recorded">已記帳 HKD $${money(t.linkedSpend)}</span>`
+                : t.note
+                ? `<span class="todo-meta">${escapeHtml(t.note)}</span>`
+                : ""
+            }
+          </div>
+          <div class="todo-actions">
+            <button type="button" class="todo-icon-btn" data-todo-edit="${t.id}" aria-label="編輯待辦" title="編輯">✎</button>
+            <button type="button" class="todo-icon-btn danger" data-todo-del="${t.id}" aria-label="刪除待辦" title="刪除">✕</button>
+          </div>
         </li>`
         )
         .join("");
@@ -501,6 +507,21 @@
     document.getElementById("modal").hidden = true;
   }
 
+  function openTodoModal(todo) {
+    const modal = document.getElementById("todoModal");
+    document.getElementById("todoModalTitle").textContent = todo ? "編輯待辦" : "加待辦";
+    document.getElementById("todoId").value = todo ? todo.id : "";
+    document.getElementById("todoDate").value = todo ? todo.date : focusDate();
+    document.getElementById("todoText").value = todo ? todo.text : "";
+    document.getElementById("todoNote").value = todo && todo.note ? todo.note : "";
+    modal.hidden = false;
+    document.getElementById("todoText").focus();
+  }
+
+  function closeTodoModal() {
+    document.getElementById("todoModal").hidden = true;
+  }
+
   function escapeHtml(s) {
     return String(s)
       .replace(/&/g, "&amp;")
@@ -563,7 +584,71 @@
       }
     });
 
+    document.getElementById("btnAddTodo").addEventListener("click", () => openTodoModal(null));
+
+    document.getElementById("todoModal").addEventListener("click", (e) => {
+      if (e.target.matches("[data-close-todo]") || e.target.classList.contains("modal-backdrop")) {
+        closeTodoModal();
+      }
+    });
+
+    document.getElementById("todoForm").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const id = document.getElementById("todoId").value;
+      const text = document.getElementById("todoText").value.trim();
+      if (!text) {
+        toast("請填寫待辦內容");
+        return;
+      }
+      const entry = {
+        id: id || ("t" + Date.now()),
+        date: document.getElementById("todoDate").value || focusDate(),
+        text: text,
+        note: document.getElementById("todoNote").value.trim(),
+        done: false,
+      };
+      if (id) {
+        const i = state.todos.findIndex((x) => x.id === id);
+        if (i >= 0) {
+          entry.done = !!state.todos[i].done;
+          if (state.todos[i].linkedSpend) entry.linkedSpend = state.todos[i].linkedSpend;
+          state.todos[i] = entry;
+        }
+      } else {
+        state.todos.push(entry);
+      }
+      // if date changed away from focus day, jump calendar so user sees it
+      if (entry.date !== focusDate() && isInTrip(entry.date)) {
+        state.selectedDate = entry.date;
+      }
+      save();
+      closeTodoModal();
+      toast(id ? "已更新待辦 ✓" : "已加待辦 ✓");
+      renderCalendar();
+    });
+
     document.getElementById("calTodoList").addEventListener("click", (e) => {
+      const editBtn = e.target.closest("[data-todo-edit]");
+      const delBtn = e.target.closest("[data-todo-del]");
+      if (editBtn) {
+        e.stopPropagation();
+        const t = state.todos.find((x) => x.id === editBtn.dataset.todoEdit);
+        if (t) openTodoModal(t);
+        return;
+      }
+      if (delBtn) {
+        e.stopPropagation();
+        const id = delBtn.dataset.todoDel;
+        const t = state.todos.find((x) => x.id === id);
+        if (!t) return;
+        if (confirm(`確定刪除「${t.text}」？`)) {
+          state.todos = state.todos.filter((x) => x.id !== id);
+          save();
+          toast("已刪除待辦");
+          renderCalendar();
+        }
+        return;
+      }
       const item = e.target.closest("[data-todo]");
       if (!item) return;
       const t = state.todos.find((x) => x.id === item.dataset.todo);
@@ -651,7 +736,10 @@
     });
 
     document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") closeModal();
+      if (e.key === "Escape") {
+        closeModal();
+        closeTodoModal();
+      }
     });
   }
 
