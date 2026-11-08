@@ -360,7 +360,8 @@ main { flex: 1; padding: 1.25rem 1rem 2.5rem; }
   border-color: var(--coral);
   color: var(--coral);
 }
-#todoForm { display: flex; flex-direction: column; gap: 0.75rem; }
+#todoForm, #itineraryForm { display: flex; flex-direction: column; gap: 0.75rem; }
+#itinDateLabel { background: var(--paper-deep); opacity: .9; }
 
 /* Calendar */
 .cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.35rem; }
@@ -430,6 +431,16 @@ main { flex: 1; padding: 1.25rem 1rem 2.5rem; }
   background: #e8f2fc;
 }
 
+.journal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.45rem;
+  flex-wrap: wrap;
+}
+.journal-head .section-h { margin: 0; }
+
 .journal-summary {
   display: flex;
   justify-content: space-between;
@@ -469,14 +480,26 @@ main { flex: 1; padding: 1.25rem 1rem 2.5rem; }
 .next-list { display: flex; flex-direction: column; gap: 0.45rem; }
 .next-day {
   display: grid;
-  grid-template-columns: 52px 1fr;
+  grid-template-columns: 52px 1fr auto;
   gap: 0.55rem;
   align-items: center;
   padding: 0.45rem 0.55rem;
   background: rgba(255,255,255,.5);
   border-radius: 10px;
   border: 1.5px dashed var(--line);
+  cursor: pointer;
+  transition: background .12s, border-color .12s;
 }
+.next-day:hover {
+  background: rgba(255,255,255,.85);
+  border-color: var(--blue);
+}
+.next-day .next-edit {
+  opacity: 0.55;
+  transition: opacity .12s;
+}
+.next-day:hover .next-edit,
+.next-day:focus-within .next-edit { opacity: 1; }
 .next-date {
   font-weight: 700;
   font-size: 0.85rem;

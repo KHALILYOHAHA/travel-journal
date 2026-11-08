@@ -272,12 +272,13 @@
         .map((d) => {
           const dt = parseDate(d);
           const it = state.itinerary[d] || {};
-          const route = it.route || state.cities[d] || "";
+          const route = it.route || state.cities[d] || "未設定路線";
           const note = it.note || state.dayTitles[d] || "";
           return `
-          <div class="next-day">
+          <div class="next-day" data-itin-date="${d}">
             <div class="next-date">${dt.getMonth() + 1}/${dt.getDate()}<small>星期${WEEKDAYS[dt.getDay()]}</small></div>
             <div class="next-info">${escapeHtml(route)}<div class="hint-line">${escapeHtml(note)}</div></div>
+            <button type="button" class="todo-icon-btn next-edit" data-itin-edit="${d}" aria-label="編輯行程" title="編輯">✎</button>
           </div>`;
         })
         .join("");
@@ -522,6 +523,30 @@
     document.getElementById("todoModal").hidden = true;
   }
 
+  function openItineraryModal(date) {
+    const d = date || focusDate();
+    if (!isInTrip(d)) {
+      toast("請揀行程入面嘅日子");
+      return;
+    }
+    const modal = document.getElementById("itineraryModal");
+    const it = state.itinerary[d] || {};
+    document.getElementById("itineraryModalTitle").textContent = "編輯行程";
+    document.getElementById("itinDate").value = d;
+    document.getElementById("itinDateLabel").value =
+      `Day ${dayIndex(d)} · ${fmtDateLong(d)}`;
+    document.getElementById("itinCity").value = state.cities[d] || "";
+    document.getElementById("itinTitle").value = state.dayTitles[d] || "";
+    document.getElementById("itinRoute").value = it.route || "";
+    document.getElementById("itinNote").value = it.note || "";
+    modal.hidden = false;
+    document.getElementById("itinCity").focus();
+  }
+
+  function closeItineraryModal() {
+    document.getElementById("itineraryModal").hidden = true;
+  }
+
   function escapeHtml(s) {
     return String(s)
       .replace(/&/g, "&amp;")
@@ -735,10 +760,77 @@
       renderAll();
     });
 
+    document.getElementById("btnEditDayItinerary").addEventListener("click", () => {
+      openItineraryModal(focusDate());
+    });
+
+    document.getElementById("itineraryModal").addEventListener("click", (e) => {
+      if (e.target.matches("[data-close-itinerary]") || e.target.classList.contains("modal-backdrop")) {
+        closeItineraryModal();
+      }
+    });
+
+    document.getElementById("itineraryForm").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const d = document.getElementById("itinDate").value;
+      if (!d || !isInTrip(d)) {
+        toast("日期唔啱");
+        return;
+      }
+      if (!state.cities) state.cities = {};
+      if (!state.dayTitles) state.dayTitles = {};
+      if (!state.itinerary) state.itinerary = {};
+
+      const city = document.getElementById("itinCity").value.trim();
+      const title = document.getElementById("itinTitle").value.trim();
+      const route = document.getElementById("itinRoute").value.trim();
+      const note = document.getElementById("itinNote").value.trim();
+
+      if (!city || !title) {
+        toast("請填城市同當日標題");
+        return;
+      }
+
+      state.cities[d] = city;
+      state.dayTitles[d] = title;
+      if (route || note) {
+        state.itinerary[d] = { route: route, note: note };
+      } else {
+        delete state.itinerary[d];
+      }
+
+      if (d !== focusDate() && isInTrip(d)) {
+        state.selectedDate = d;
+      }
+      save();
+      closeItineraryModal();
+      toast("已更新行程 ✓");
+      renderCalendar();
+    });
+
+    document.getElementById("calNextDays").addEventListener("click", (e) => {
+      const editBtn = e.target.closest("[data-itin-edit]");
+      if (editBtn) {
+        e.stopPropagation();
+        openItineraryModal(editBtn.dataset.itinEdit);
+        return;
+      }
+      const card = e.target.closest("[data-itin-date]");
+      if (card) {
+        const d = card.dataset.itinDate;
+        if (isInTrip(d)) {
+          state.selectedDate = d;
+          save();
+          renderCalendar();
+        }
+      }
+    });
+
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") {
         closeModal();
         closeTodoModal();
+        closeItineraryModal();
       }
     });
   }
