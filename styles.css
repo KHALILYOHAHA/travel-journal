@@ -1065,3 +1065,5 @@ a.map-link[hidden] { display: none !important; }
   border-color: var(--blue, #5b7c99);
 }
 #pretripBody[hidden] { display: none !important; }
+
+.expense-card { margin-top: 0.75rem; }

@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Noto+Sans+TC:wght@400;500;700&family=LXGW+WenKai+TC&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=18" />
+  <link rel="stylesheet" href="styles.css?v=19" />
 </head>
 <body>
   <div id="app">
@@ -93,6 +93,28 @@
               </svg>
             </div>
 
+
+            <div class="pretrip-card rough-card">
+              <div class="pretrip-head">
+                <h3 class="section-h">旅行前 Checklist <span class="muted" id="pretripProgress"></span></h3>
+                <div class="pretrip-actions">
+                  <button type="button" class="btn btn-ghost sm" id="btnTogglePretrip" aria-pressed="true">隱藏</button>
+                  <button type="button" class="btn btn-ghost sm" id="btnAddPretrip">＋ 加項目</button>
+                </div>
+              </div>
+              <div id="pretripBody">
+                <ul class="todo-list" id="pretripList"></ul>
+              </div>
+            </div>
+
+            <div class="todo-card rough-card grid-paper">
+              <div class="todo-head">
+                <h3 class="section-h">今日待辦 <span class="muted" id="calTodoSub">Day 1 · 東京</span></h3>
+                <button type="button" class="btn btn-ghost sm" id="btnAddTodo">＋ 加待辦</button>
+              </div>
+              <ul class="todo-list" id="calTodoList"></ul>
+            </div>
+
             <div class="expense-card rough-card">
               <div class="expense-head">
                 <div class="expense-main">
@@ -114,27 +136,6 @@
                 <span>預算 <strong id="calBudget">未設定</strong></span>
                 <span>今日 <strong id="calTodaySpend">HKD $0</strong></span>
               </div>
-            </div>
-
-            <div class="pretrip-card rough-card">
-              <div class="pretrip-head">
-                <h3 class="section-h">旅行前 Checklist <span class="muted" id="pretripProgress"></span></h3>
-                <div class="pretrip-actions">
-                  <button type="button" class="btn btn-ghost sm" id="btnTogglePretrip" aria-pressed="true">隱藏</button>
-                  <button type="button" class="btn btn-ghost sm" id="btnAddPretrip">＋ 加項目</button>
-                </div>
-              </div>
-              <div id="pretripBody">
-                <ul class="todo-list" id="pretripList"></ul>
-              </div>
-            </div>
-
-            <div class="todo-card rough-card grid-paper">
-              <div class="todo-head">
-                <h3 class="section-h">今日待辦 <span class="muted" id="calTodoSub">Day 1 · 東京</span></h3>
-                <button type="button" class="btn btn-ghost sm" id="btnAddTodo">＋ 加待辦</button>
-              </div>
-              <ul class="todo-list" id="calTodoList"></ul>
             </div>
           </article>
 
@@ -409,6 +410,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=18"></script>
+  <script src="app.js?v=19"></script>
 </body>
 </html>
