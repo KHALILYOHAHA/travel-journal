@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Noto+Sans+TC:wght@400;500;700&family=LXGW+WenKai+TC&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=17" />
+  <link rel="stylesheet" href="styles.css?v=18" />
 </head>
 <body>
   <div id="app">
@@ -113,6 +113,19 @@
               <div class="budget-meta">
                 <span>預算 <strong id="calBudget">未設定</strong></span>
                 <span>今日 <strong id="calTodaySpend">HKD $0</strong></span>
+              </div>
+            </div>
+
+            <div class="pretrip-card rough-card">
+              <div class="pretrip-head">
+                <h3 class="section-h">旅行前 Checklist <span class="muted" id="pretripProgress"></span></h3>
+                <div class="pretrip-actions">
+                  <button type="button" class="btn btn-ghost sm" id="btnTogglePretrip" aria-pressed="true">隱藏</button>
+                  <button type="button" class="btn btn-ghost sm" id="btnAddPretrip">＋ 加項目</button>
+                </div>
+              </div>
+              <div id="pretripBody">
+                <ul class="todo-list" id="pretripList"></ul>
               </div>
             </div>
 
@@ -374,6 +387,28 @@
     </div>
   </div>
 
-  <script src="app.js?v=17"></script>
+
+  <!-- Pre-trip checklist modal -->
+  <div id="pretripModal" class="modal" hidden>
+    <div class="modal-backdrop" data-close-pretrip></div>
+    <div class="modal-card rough-card" role="dialog" aria-modal="true" aria-labelledby="pretripModalTitle">
+      <h3 id="pretripModalTitle">加 checklist 項目</h3>
+      <form id="pretripForm">
+        <input type="hidden" id="pretripId" />
+        <label>項目
+          <input type="text" id="pretripText" required placeholder="例如：帶齊護照" maxlength="80" />
+        </label>
+        <label>備註（可選）
+          <input type="text" id="pretripNote" placeholder="例如：放喺手提包" maxlength="120" />
+        </label>
+        <div class="form-actions">
+          <button type="button" class="btn btn-ghost" data-close-pretrip>取消</button>
+          <button type="submit" class="btn btn-scan">儲存</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="app.js?v=18"></script>
 </body>
 </html>

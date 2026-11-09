@@ -73,6 +73,17 @@
         { id: "t2", date: "2026-12-15", text: "飯店 check-in", done: false },
         { id: "t3", date: "2026-12-15", text: "附近食晚飯", done: false },
       ],
+      pretrip: [
+        { id: "p1", text: "護照／旅遊證件", note: "", done: false },
+        { id: "p2", text: "機票／boarding pass", note: "", done: false },
+        { id: "p3", text: "酒店確認電郵", note: "", done: false },
+        { id: "p4", text: "日元現金／信用卡", note: "", done: false },
+        { id: "p5", text: "eSIM／漫遊／Wi‑Fi", note: "", done: false },
+        { id: "p6", text: "充電器／轉換插", note: "", done: false },
+        { id: "p7", text: "藥／保險資料", note: "", done: false },
+        { id: "p8", text: "行李額／禁運物品 check", note: "", done: false },
+      ],
+      showPretrip: true,
       expenses: [],
       selectedDate: DEMO_TODAY,
       calMonth: "2026-12",
@@ -98,6 +109,8 @@
   let state = load();
   normalizeItinerary(state);
   if (typeof state.showMaps !== "boolean") state.showMaps = true;
+  if (typeof state.showPretrip !== "boolean") state.showPretrip = true;
+  if (!Array.isArray(state.pretrip)) state.pretrip = seedData().pretrip;
   if (!state.trip) state.trip = {};
   if (!state.trip.travelMode) state.trip.travelMode = "driving";
 
@@ -257,6 +270,8 @@
         )
         .join("");
     }
+
+    renderPretrip();
 
     // Month grid
     renderMonthGrid();
@@ -603,6 +618,65 @@
 
   function closeTodoModal() {
     document.getElementById("todoModal").hidden = true;
+  }
+
+  function syncPretripToggleBtn() {
+    const btn = document.getElementById("btnTogglePretrip");
+    const body = document.getElementById("pretripBody");
+    if (!btn || !body) return;
+    const on = state.showPretrip !== false;
+    btn.textContent = on ? "隱藏" : "顯示";
+    btn.setAttribute("aria-pressed", on ? "true" : "false");
+    btn.classList.toggle("is-off", !on);
+    body.hidden = !on;
+    const addBtn = document.getElementById("btnAddPretrip");
+    if (addBtn) addBtn.hidden = !on;
+  }
+
+  function renderPretrip() {
+    syncPretripToggleBtn();
+    const list = document.getElementById("pretripList");
+    const prog = document.getElementById("pretripProgress");
+    if (!list) return;
+    if (!Array.isArray(state.pretrip)) state.pretrip = seedData().pretrip;
+    const items = state.pretrip;
+    const done = items.filter((x) => x.done).length;
+    if (prog) prog.textContent = items.length ? `· ${done}/${items.length}` : "";
+    if (!items.length) {
+      list.innerHTML = `<li class="todo-empty"><span class="todo-text">未有項目 — 撳「＋ 加項目」</span></li>`;
+      return;
+    }
+    list.innerHTML = items
+      .map(
+        (t) => `
+        <li class="todo-item ${t.done ? "done" : ""}" data-pretrip="${escapeHtml(t.id)}">
+          <input type="checkbox" ${t.done ? "checked" : ""} />
+          <span class="check" aria-hidden="true"></span>
+          <div class="todo-body">
+            <span class="todo-text">${escapeHtml(t.text)}</span>
+            ${t.note ? `<span class="todo-meta">${escapeHtml(t.note)}</span>` : ""}
+          </div>
+          <div class="todo-actions">
+            <button type="button" class="todo-icon-btn" data-pretrip-edit="${escapeHtml(t.id)}" aria-label="編輯" title="編輯">✎</button>
+            <button type="button" class="todo-icon-btn danger" data-pretrip-del="${escapeHtml(t.id)}" aria-label="刪除" title="刪除">✕</button>
+          </div>
+        </li>`
+      )
+      .join("");
+  }
+
+  function openPretripModal(item) {
+    const modal = document.getElementById("pretripModal");
+    document.getElementById("pretripModalTitle").textContent = item ? "編輯 checklist" : "加 checklist 項目";
+    document.getElementById("pretripId").value = item ? item.id : "";
+    document.getElementById("pretripText").value = item ? item.text : "";
+    document.getElementById("pretripNote").value = item ? item.note || "" : "";
+    modal.hidden = false;
+    document.getElementById("pretripText").focus();
+  }
+
+  function closePretripModal() {
+    document.getElementById("pretripModal").hidden = true;
   }
 
   function openItineraryModal(date, opts) {
@@ -1183,6 +1257,82 @@
 
     document.getElementById("btnAddTodo").addEventListener("click", () => openTodoModal(null));
 
+    document.getElementById("btnTogglePretrip").addEventListener("click", () => {
+      state.showPretrip = state.showPretrip === false;
+      save();
+      syncPretripToggleBtn();
+      toast(state.showPretrip !== false ? "已顯示旅行前 checklist" : "已隱藏旅行前 checklist");
+    });
+
+    document.getElementById("btnAddPretrip").addEventListener("click", () => openPretripModal(null));
+
+    document.getElementById("pretripModal").addEventListener("click", (e) => {
+      if (e.target.matches("[data-close-pretrip]") || e.target.classList.contains("modal-backdrop")) {
+        closePretripModal();
+      }
+    });
+
+    document.getElementById("pretripForm").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const id = document.getElementById("pretripId").value;
+      const text = document.getElementById("pretripText").value.trim();
+      if (!text) {
+        toast("請填寫項目");
+        return;
+      }
+      if (!Array.isArray(state.pretrip)) state.pretrip = seedData().pretrip;
+      const entry = {
+        id: id || uid("p"),
+        text: text,
+        note: document.getElementById("pretripNote").value.trim(),
+        done: false,
+      };
+      if (id) {
+        const i = state.pretrip.findIndex((x) => x.id === id);
+        if (i >= 0) {
+          entry.done = !!state.pretrip[i].done;
+          state.pretrip[i] = entry;
+        }
+      } else {
+        state.pretrip.push(entry);
+      }
+      save();
+      closePretripModal();
+      toast(id ? "已更新 ✓" : "已加項目 ✓");
+      renderPretrip();
+    });
+
+    document.getElementById("pretripList").addEventListener("click", (e) => {
+      const editBtn = e.target.closest("[data-pretrip-edit]");
+      const delBtn = e.target.closest("[data-pretrip-del]");
+      if (editBtn) {
+        e.stopPropagation();
+        const t = state.pretrip.find((x) => x.id === editBtn.dataset.pretripEdit);
+        if (t) openPretripModal(t);
+        return;
+      }
+      if (delBtn) {
+        e.stopPropagation();
+        const id = delBtn.dataset.pretripDel;
+        const t = state.pretrip.find((x) => x.id === id);
+        if (!t) return;
+        if (confirm(`確定刪除「${t.text}」？`)) {
+          state.pretrip = state.pretrip.filter((x) => x.id !== id);
+          save();
+          toast("已刪除");
+          renderPretrip();
+        }
+        return;
+      }
+      const item = e.target.closest("[data-pretrip]");
+      if (!item) return;
+      const t = state.pretrip.find((x) => x.id === item.dataset.pretrip);
+      if (!t) return;
+      t.done = !t.done;
+      save();
+      renderPretrip();
+    });
+
     document.getElementById("todoModal").addEventListener("click", (e) => {
       if (e.target.matches("[data-close-todo]") || e.target.classList.contains("modal-backdrop")) {
         closeTodoModal();
@@ -1470,6 +1620,7 @@
       if (e.key === "Escape") {
         closeModal();
         closeTodoModal();
+        closePretripModal();
         closeItineraryModal();
       }
     });
