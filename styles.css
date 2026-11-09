@@ -1009,3 +1009,9 @@ a.map-link[hidden] { display: none !important; }
   font-weight: 700;
 }
 .day-leg-map iframe { height: 160px; }
+
+.day-itin-actions { display: flex; gap: 0.35rem; align-items: center; flex-wrap: wrap; }
+#btnToggleMaps.is-maps-off {
+  background: rgba(91, 124, 153, 0.12);
+  border-color: var(--blue, #5b7c99);
+}

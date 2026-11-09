@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Noto+Sans+TC:wght@400;500;700&family=LXGW+WenKai+TC&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=9" />
+  <link rel="stylesheet" href="styles.css?v=10" />
 </head>
 <body>
   <div id="app">
@@ -165,7 +165,10 @@
             <div class="day-itin-card rough-card">
               <div class="day-itin-head">
                 <h3 class="section-h">當日行程</h3>
-                <button type="button" class="btn btn-ghost sm" id="btnAddStop">＋ 加地點</button>
+                <div class="day-itin-actions">
+                  <button type="button" class="btn btn-ghost sm" id="btnToggleMaps" aria-pressed="true">隱藏地圖</button>
+                  <button type="button" class="btn btn-ghost sm" id="btnAddStop">＋ 加地點</button>
+                </div>
               </div>
               <div class="day-stops" id="dayStopsList"></div>
             </div>
@@ -371,6 +374,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=9"></script>
+  <script src="app.js?v=10"></script>
 </body>
 </html>

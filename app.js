@@ -75,6 +75,7 @@
       expenses: [],
       selectedDate: DEMO_TODAY,
       calMonth: "2026-12",
+      showMaps: true,
     };
   }
 
@@ -95,6 +96,7 @@
 
   let state = load();
   normalizeItinerary(state);
+  if (typeof state.showMaps !== "boolean") state.showMaps = true;
 
   function uid(prefix) {
     return prefix + "_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -329,10 +331,11 @@
           const mq = dayMapsQuery(d);
           const mapHref =
             routePts.length >= 2 ? mapsMultiDirectionsUrl(routePts) : mapsUrl(mq);
-          const embed =
-            routePts.length >= 2
-              ? mapsMultiDirectionsEmbedUrl(routePts)
-              : mapsEmbedUrl(mq);
+          const embed = !mapsVisible()
+            ? ""
+            : routePts.length >= 2
+            ? mapsMultiDirectionsEmbedUrl(routePts)
+            : mapsEmbedUrl(mq);
           const mapBtn = mapHref
             ? `<a class="todo-icon-btn next-map" href="${escapeHtml(mapHref)}" target="_blank" rel="noopener" data-itin-map aria-label="開 Google 地圖" title="地圖">🗺</a>`
             : "";
@@ -746,6 +749,19 @@
     return "";
   }
 
+  function mapsVisible() {
+    return state.showMaps !== false;
+  }
+
+  function syncMapsToggleBtn() {
+    const btn = document.getElementById("btnToggleMaps");
+    if (!btn) return;
+    const on = mapsVisible();
+    btn.textContent = on ? "隱藏地圖" : "顯示地圖";
+    btn.setAttribute("aria-pressed", on ? "true" : "false");
+    btn.classList.toggle("is-maps-off", !on);
+  }
+
   /** Place text suitable for directions (avoid raw maps URLs). */
   function stopRouteQuery(stop) {
     if (!stop) return "";
@@ -812,16 +828,18 @@
     const el = document.getElementById("dayStopsList");
     if (!el) return;
     const stops = sortStopsByTime(dayStops(date));
+    syncMapsToggleBtn();
     if (!stops.length) {
       el.innerHTML = `<div class="day-stops-empty">未有地點 — 撳右上「＋ 加地點」開始排行程</div>`;
       return;
     }
 
+    const showMap = mapsVisible();
     const routePts = stops.map(stopRouteQuery).filter(Boolean);
     let html = "";
 
     if (routePts.length >= 2) {
-      const fullEmbed = mapsMultiDirectionsEmbedUrl(routePts);
+      const fullEmbed = showMap ? mapsMultiDirectionsEmbedUrl(routePts) : "";
       const fullHref = mapsMultiDirectionsUrl(routePts);
       html += `
         <div class="day-route-card">
@@ -848,8 +866,8 @@
       const mapLink = href
         ? `<a class="todo-icon-btn" href="${escapeHtml(href)}" target="_blank" rel="noopener" aria-label="開地圖">🗺</a>`
         : "";
-      // Single stop: show place pin. Multi: route overview covers it; still show pin only if alone.
-      const embed = routePts.length < 2 ? mapsEmbedUrl(q) : "";
+      // Single stop: show place pin when maps on. Multi: covered by route overview.
+      const embed = showMap && routePts.length < 2 ? mapsEmbedUrl(q) : "";
       const mapBlock = embed
         ? `<div class="day-stop-map"><iframe title="${escapeHtml(s.place || "地圖")}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen src="${escapeHtml(embed)}"></iframe></div>`
         : "";
@@ -876,7 +894,7 @@
       if (next) {
         const fromQ = stopRouteQuery(s);
         const toQ = stopRouteQuery(next);
-        const segEmbed = mapsDirectionsEmbedUrl(fromQ, toQ);
+        const segEmbed = showMap ? mapsDirectionsEmbedUrl(fromQ, toQ) : "";
         const segHref = mapsDirectionsUrl(fromQ, toQ);
         if (segEmbed || segHref) {
           html += `
@@ -1188,6 +1206,14 @@
       if (e.target.matches("[data-close-itinerary]") || e.target.classList.contains("modal-backdrop")) {
         closeItineraryModal();
       }
+    });
+
+    document.getElementById("btnToggleMaps").addEventListener("click", () => {
+      state.showMaps = !mapsVisible();
+      save();
+      syncMapsToggleBtn();
+      renderCalendar();
+      toast(state.showMaps ? "已顯示地圖 🗺" : "已隱藏地圖");
     });
 
     document.getElementById("btnAddStop").addEventListener("click", () => {
