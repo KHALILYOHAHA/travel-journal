@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Noto+Sans+TC:wght@400;500;700&family=LXGW+WenKai+TC&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=6" />
+  <link rel="stylesheet" href="styles.css?v=7" />
 </head>
 <body>
   <div id="app">
@@ -160,6 +160,14 @@
                 <iframe id="dayMapFrame" class="day-map-frame" title="當日 Google 地圖" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>
               </div>
               <ul class="journal-list" id="calJournalList"></ul>
+            </div>
+
+            <div class="day-itin-card rough-card">
+              <div class="day-itin-head">
+                <h3 class="section-h">當日行程</h3>
+                <button type="button" class="btn btn-ghost sm" id="btnAddStop">＋ 加地點</button>
+              </div>
+              <div class="day-stops" id="dayStopsList"></div>
             </div>
 
             <div class="next-card rough-card">
@@ -343,22 +351,18 @@
         <label>日期
           <input type="text" id="itinDateLabel" readonly />
         </label>
-        <label>城市／地點
+        <label>城市
           <input type="text" id="itinCity" required placeholder="例如：東京、河口湖" maxlength="40" />
         </label>
         <label>當日標題
           <input type="text" id="itinTitle" required placeholder="例如：淺草・晴空塔" maxlength="60" />
         </label>
-        <label>路線（可選）
-          <input type="text" id="itinRoute" placeholder="例如：淺草 → 晴空塔" maxlength="80" />
-        </label>
-        <label>備註（可選）
-          <input type="text" id="itinNote" placeholder="例如：傍晚上晴空塔睇夜景" maxlength="120" />
-        </label>
-        <label>Google 地圖地點（可選）
-          <input type="text" id="itinMaps" placeholder="例如：淺草寺 或貼上 Google Maps 連結" maxlength="300" />
-        </label>
-        <p class="field-hint">填地名會開 Google Maps 搜尋；亦可直接貼完整地圖連結。</p>
+        <div class="itin-stops-head">
+          <span class="itin-stops-label">行程地點</span>
+          <button type="button" class="btn btn-ghost sm" id="btnItinAddStop">＋ 加地點</button>
+        </div>
+        <div id="itinStops" class="itin-stops"></div>
+        <p class="field-hint">每個地點可填 Google 地圖搜尋字／連結；會直接顯示喺當日行程。</p>
         <div class="form-actions">
           <button type="button" class="btn btn-ghost" data-close-itinerary>取消</button>
           <button type="submit" class="btn btn-scan">儲存</button>
@@ -367,6 +371,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=6"></script>
+  <script src="app.js?v=7"></script>
 </body>
 </html>

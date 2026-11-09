@@ -48,9 +48,24 @@
         "2026-12-21": "手信・回港",
       },
       itinerary: {
-        "2026-12-16": { route: "淺草 → 晴空塔", note: "雷門・仲見世通，傍晚上晴空塔睇夜景", maps: "淺草寺" },
-        "2026-12-17": { route: "渋谷 → 原宿", note: "十字路口・竹下通・明治神宮散步", maps: "渋谷スクランブル交差点" },
-        "2026-12-18": { route: "東京 → 河口湖", note: "前往富士山山腳，入住河口湖", maps: "河口湖駅" },
+        "2026-12-16": {
+          stops: [
+            { id: "s16a", place: "淺草寺", note: "雷門・仲見世通", maps: "淺草寺" },
+            { id: "s16b", place: "晴空塔", note: "傍晚睇夜景", maps: "東京晴空塔" },
+          ],
+        },
+        "2026-12-17": {
+          stops: [
+            { id: "s17a", place: "渋谷十字路口", note: "渋谷スクランブル交差点", maps: "渋谷スクランブル交差点" },
+            { id: "s17b", place: "竹下通", note: "原宿逛街", maps: "竹下通り" },
+            { id: "s17c", place: "明治神宮", note: "散步", maps: "明治神宮" },
+          ],
+        },
+        "2026-12-18": {
+          stops: [
+            { id: "s18a", place: "河口湖駅", note: "由東京前往富士山山腳", maps: "河口湖駅" },
+          ],
+        },
       },
       todos: [
         { id: "t1", date: "2026-12-15", text: "換 Suica", done: false },
@@ -79,6 +94,7 @@
   }
 
   let state = load();
+  normalizeItinerary(state);
 
   function uid(prefix) {
     return prefix + "_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -245,9 +261,9 @@
     document.getElementById("calJournalSummary").innerHTML = `
       <span class="j-title">Day ${dayN} · ${escapeHtml(dayTitle)}</span>
       <span class="j-meta">${dayExps.length} 筆記錄 · HKD $${money(spentOn(today))}</span>`;
+    // Overview map button (first stop); detailed embeds live under 當日行程
     const mqToday = dayMapsQuery(today);
     const hrefToday = mapsUrl(mqToday);
-    const embedToday = mapsEmbedUrl(mqToday);
     const dayMapBtn = document.getElementById("btnDayMap");
     if (dayMapBtn) {
       if (hrefToday) {
@@ -261,16 +277,10 @@
     const mapWrap = document.getElementById("dayMapWrap");
     const mapFrame = document.getElementById("dayMapFrame");
     if (mapWrap && mapFrame) {
-      if (embedToday) {
-        if (mapFrame.getAttribute("src") !== embedToday) {
-          mapFrame.src = embedToday;
-        }
-        mapWrap.hidden = false;
-      } else {
-        mapFrame.removeAttribute("src");
-        mapWrap.hidden = true;
-      }
+      mapFrame.removeAttribute("src");
+      mapWrap.hidden = true; // per-stop maps shown in 當日行程
     }
+    renderDayStops(today);
     const jl = document.getElementById("calJournalList");
     if (!dayExps.length) {
       jl.innerHTML = `<li><span class="muted">尚未記帳</span></li>`;
@@ -297,9 +307,22 @@
       nextEl.innerHTML = next
         .map((d) => {
           const dt = parseDate(d);
-          const it = state.itinerary[d] || {};
-          const route = it.route || state.cities[d] || "未設定路線";
-          const note = it.note || state.dayTitles[d] || "";
+          const stops = dayStops(d);
+          const title = state.dayTitles[d] || state.cities[d] || "未設定行程";
+          const route =
+            stops.length > 0
+              ? stops.map((s) => s.place).filter(Boolean).join(" → ")
+              : title;
+          const stopLines = stops.length
+            ? `<div class="next-stops">${stops
+                .map(
+                  (s, i) =>
+                    `<div class="next-stop-line"><strong>${i + 1}. ${escapeHtml(
+                      s.place || "地點"
+                    )}</strong>${s.note ? " · " + escapeHtml(s.note) : ""}</div>`
+                )
+                .join("")}</div>`
+            : `<div class="hint-line">${escapeHtml(title)}</div>`;
           const mq = dayMapsQuery(d);
           const mapHref = mapsUrl(mq);
           const embed = mapsEmbedUrl(mq);
@@ -312,7 +335,7 @@
           return `
           <div class="next-day" data-itin-date="${d}">
             <div class="next-date">${dt.getMonth() + 1}/${dt.getDate()}<small>星期${WEEKDAYS[dt.getDay()]}</small></div>
-            <div class="next-info">${escapeHtml(route)}<div class="hint-line">${escapeHtml(note)}</div></div>
+            <div class="next-info">${escapeHtml(route)}${stopLines}</div>
             <div class="next-actions">
               ${mapBtn}
               <button type="button" class="todo-icon-btn next-edit" data-itin-edit="${d}" aria-label="編輯行程" title="編輯">✎</button>
@@ -562,25 +585,32 @@
     document.getElementById("todoModal").hidden = true;
   }
 
-  function openItineraryModal(date) {
+  function openItineraryModal(date, opts) {
     const d = date || focusDate();
     if (!isInTrip(d)) {
       toast("請揀行程入面嘅日子");
       return;
     }
     const modal = document.getElementById("itineraryModal");
-    const it = state.itinerary[d] || {};
+    const stops = dayStops(d).map((s) => ({ ...s }));
+    if (opts && opts.addStop) stops.push(emptyStop());
+    if (!stops.length) stops.push(emptyStop());
     document.getElementById("itineraryModalTitle").textContent = "編輯行程";
     document.getElementById("itinDate").value = d;
     document.getElementById("itinDateLabel").value =
       `Day ${dayIndex(d)} · ${fmtDateLong(d)}`;
     document.getElementById("itinCity").value = state.cities[d] || "";
     document.getElementById("itinTitle").value = state.dayTitles[d] || "";
-    document.getElementById("itinRoute").value = it.route || "";
-    document.getElementById("itinNote").value = it.note || "";
-    document.getElementById("itinMaps").value = it.maps || "";
+    renderItinStopFields(stops);
     modal.hidden = false;
-    document.getElementById("itinCity").focus();
+    const firstPlace = document.querySelector('#itinStops [data-f="place"]');
+    if (opts && opts.addStop && firstPlace) {
+      const places = document.querySelectorAll('#itinStops [data-f="place"]');
+      const last = places[places.length - 1];
+      if (last) last.focus();
+    } else {
+      document.getElementById("itinCity").focus();
+    }
   }
 
   function closeItineraryModal() {
@@ -593,6 +623,60 @@
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;");
+  }
+
+  function normalizeStop(s) {
+    const o = s && typeof s === "object" ? s : {};
+    return {
+      id: o.id || uid("s"),
+      place: String(o.place || o.route || "").trim(),
+      note: String(o.note || "").trim(),
+      maps: String(o.maps || "").trim(),
+    };
+  }
+
+  function normalizeDayItinerary(raw) {
+    if (!raw) return { stops: [] };
+    if (Array.isArray(raw)) return { stops: raw.map(normalizeStop).filter((s) => s.place || s.note || s.maps) };
+    if (raw.stops && Array.isArray(raw.stops)) {
+      return { stops: raw.stops.map(normalizeStop).filter((s) => s.place || s.note || s.maps) };
+    }
+    // Legacy single object { route, note, maps }
+    const places = String(raw.route || "")
+      .split(/\s*→\s*|\s*->\s*|\s*／\s*|\s*\/\s*/)
+      .map((x) => x.trim())
+      .filter(Boolean);
+    const stops = [];
+    if (places.length) {
+      places.forEach((p, i) => {
+        stops.push({
+          id: uid("s"),
+          place: p,
+          note: i === 0 ? String(raw.note || "").trim() : "",
+          maps: i === 0 ? String(raw.maps || "").trim() || p : p,
+        });
+      });
+    } else if (raw.note || raw.maps) {
+      stops.push({
+        id: uid("s"),
+        place: String(raw.maps || "行程").trim(),
+        note: String(raw.note || "").trim(),
+        maps: String(raw.maps || "").trim(),
+      });
+    }
+    return { stops };
+  }
+
+  function normalizeItinerary(st) {
+    if (!st.itinerary || typeof st.itinerary !== "object") st.itinerary = {};
+    Object.keys(st.itinerary).forEach((d) => {
+      st.itinerary[d] = normalizeDayItinerary(st.itinerary[d]);
+    });
+  }
+
+  function dayStops(d) {
+    const it = normalizeDayItinerary((state.itinerary && state.itinerary[d]) || null);
+    return it.stops || [];
   }
 
   function mapsUrl(raw) {
@@ -637,9 +721,104 @@
   }
 
   function dayMapsQuery(d) {
-    const it = (state.itinerary && state.itinerary[d]) || {};
-    if (it.maps && String(it.maps).trim()) return String(it.maps).trim();
+    const stops = dayStops(d);
+    for (const s of stops) {
+      if (s.maps) return s.maps;
+      if (s.place) return s.place;
+    }
     return "";
+  }
+
+  function stopMapsQuery(stop) {
+    if (!stop) return "";
+    if (stop.maps) return stop.maps;
+    if (stop.place) return stop.place;
+    return "";
+  }
+
+  function renderDayStops(date) {
+    const el = document.getElementById("dayStopsList");
+    if (!el) return;
+    const stops = dayStops(date);
+    if (!stops.length) {
+      el.innerHTML = `<div class="day-stops-empty">未有地點 — 撳右上「＋ 加地點」開始排行程</div>`;
+      return;
+    }
+    el.innerHTML = stops
+      .map((s, i) => {
+        const q = stopMapsQuery(s);
+        const href = mapsUrl(q);
+        const embed = mapsEmbedUrl(q);
+        const mapLink = href
+          ? `<a class="todo-icon-btn" href="${escapeHtml(href)}" target="_blank" rel="noopener" aria-label="開地圖">🗺</a>`
+          : "";
+        const mapBlock = embed
+          ? `<div class="day-stop-map"><iframe title="${escapeHtml(s.place || "地圖")}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen src="${escapeHtml(embed)}"></iframe></div>`
+          : "";
+        return `
+        <div class="day-stop" data-stop-id="${escapeHtml(s.id)}">
+          <div class="day-stop-top">
+            <div>
+              <div class="day-stop-name">${i + 1}. ${escapeHtml(s.place || "未命名地點")}</div>
+              ${s.note ? `<div class="day-stop-note">${escapeHtml(s.note)}</div>` : ""}
+            </div>
+            <div class="next-actions">
+              ${mapLink}
+              <button type="button" class="todo-icon-btn" data-stop-edit="${escapeHtml(s.id)}" aria-label="編輯行程" title="編輯">✎</button>
+            </div>
+          </div>
+          ${mapBlock}
+        </div>`;
+      })
+      .join("");
+  }
+
+  function emptyStop() {
+    return { id: uid("s"), place: "", note: "", maps: "" };
+  }
+
+  function renderItinStopFields(stops) {
+    const box = document.getElementById("itinStops");
+    if (!box) return;
+    const list = stops && stops.length ? stops : [emptyStop()];
+    box.innerHTML = list
+      .map((s, i) => {
+        return `
+        <div class="itin-stop" data-stop-row="${escapeHtml(s.id)}">
+          <div class="itin-stop-bar">
+            <span class="itin-stop-idx">地點 ${i + 1}</span>
+            <button type="button" class="todo-icon-btn danger" data-remove-stop="${escapeHtml(s.id)}" aria-label="刪除此地點" title="刪除">✕</button>
+          </div>
+          <label>名稱
+            <input type="text" data-f="place" value="${escapeHtml(s.place)}" placeholder="例如：淺草寺" maxlength="60" required />
+          </label>
+          <label>備註（可選）
+            <input type="text" data-f="note" value="${escapeHtml(s.note)}" placeholder="例如：傍晚去" maxlength="120" />
+          </label>
+          <label>Google 地圖（可選）
+            <input type="text" data-f="maps" value="${escapeHtml(s.maps)}" placeholder="地名或 Maps 連結" maxlength="300" />
+          </label>
+        </div>`;
+      })
+      .join("");
+  }
+
+  function readItinStopsFromForm() {
+    const box = document.getElementById("itinStops");
+    if (!box) return [];
+    return Array.from(box.querySelectorAll(".itin-stop"))
+      .map((row) => {
+        const place = (row.querySelector('[data-f="place"]') || {}).value || "";
+        const note = (row.querySelector('[data-f="note"]') || {}).value || "";
+        const maps = (row.querySelector('[data-f="maps"]') || {}).value || "";
+        return {
+          id: row.getAttribute("data-stop-row") || uid("s"),
+          place: place.trim(),
+          note: note.trim(),
+          maps: maps.trim(),
+        };
+      })
+      .filter((s) => s.place || s.note || s.maps);
   }
 
   // ---------- Events ----------
@@ -841,6 +1020,7 @@
       if (!confirm("重設示範資料？你手動加嘅記錄會冇晒。")) return;
       localStorage.removeItem(STORAGE_KEY);
       state = seedData();
+      normalizeItinerary(state);
       save();
       toast("已重設行程 🎒");
       switchTab("calendar");
@@ -857,6 +1037,32 @@
       }
     });
 
+    document.getElementById("btnAddStop").addEventListener("click", () => {
+      openItineraryModal(focusDate(), { addStop: true });
+    });
+
+    document.getElementById("btnItinAddStop").addEventListener("click", () => {
+      const stops = readItinStopsFromForm();
+      stops.push(emptyStop());
+      renderItinStopFields(stops);
+      const places = document.querySelectorAll('#itinStops [data-f="place"]');
+      const last = places[places.length - 1];
+      if (last) last.focus();
+    });
+
+    document.getElementById("itinStops").addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-remove-stop]");
+      if (!btn) return;
+      const stops = readItinStopsFromForm().filter((s) => s.id !== btn.getAttribute("data-remove-stop"));
+      renderItinStopFields(stops.length ? stops : [emptyStop()]);
+    });
+
+    document.getElementById("dayStopsList").addEventListener("click", (e) => {
+      if (e.target.closest("[data-stop-edit]")) {
+        openItineraryModal(focusDate());
+      }
+    });
+
     document.getElementById("itineraryForm").addEventListener("submit", (e) => {
       e.preventDefault();
       const d = document.getElementById("itinDate").value;
@@ -870,19 +1076,21 @@
 
       const city = document.getElementById("itinCity").value.trim();
       const title = document.getElementById("itinTitle").value.trim();
-      const route = document.getElementById("itinRoute").value.trim();
-      const note = document.getElementById("itinNote").value.trim();
-      const maps = document.getElementById("itinMaps").value.trim();
+      const stops = readItinStopsFromForm();
 
       if (!city || !title) {
         toast("請填城市同當日標題");
         return;
       }
+      if (stops.some((s) => !s.place)) {
+        toast("每個地點都要有名稱");
+        return;
+      }
 
       state.cities[d] = city;
       state.dayTitles[d] = title;
-      if (route || note || maps) {
-        state.itinerary[d] = { route: route, note: note, maps: maps };
+      if (stops.length) {
+        state.itinerary[d] = { stops };
       } else {
         delete state.itinerary[d];
       }

@@ -713,6 +713,8 @@ main { flex: 1; padding: 1.25rem 1rem 2.5rem; }
   backdrop-filter: blur(2px);
 }
 .modal-card {
+  max-height: min(90vh, 720px);
+  overflow-y: auto;
   position: relative;
   z-index: 1;
   width: min(440px, 100%);
@@ -840,3 +842,96 @@ a.map-link[hidden] { display: none !important; }
   .day-map-frame { height: 200px; }
   .next-day-map iframe { height: 130px; }
 }
+
+.day-itin-card { margin-top: 0.75rem; }
+.day-itin-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.45rem;
+}
+.day-stops { display: flex; flex-direction: column; gap: 0.65rem; }
+.day-stop {
+  padding: 0.55rem 0.65rem;
+  background: rgba(255,255,255,.55);
+  border: 1.5px dashed var(--line);
+  border-radius: 12px;
+}
+.day-stop-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.45rem;
+}
+.day-stop-name {
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+.day-stop-note {
+  margin-top: 0.15rem;
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+}
+.day-stop-map {
+  margin-top: 0.45rem;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: #e8eef3;
+}
+.day-stop-map iframe {
+  display: block;
+  width: 100%;
+  height: 170px;
+  border: 0;
+}
+.day-stops-empty {
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+  padding: 0.35rem 0.1rem 0.15rem;
+}
+.itin-stops-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.15rem;
+}
+.itin-stops-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+.itin-stops { display: flex; flex-direction: column; gap: 0.65rem; }
+.itin-stop {
+  padding: 0.65rem;
+  border: 1.5px dashed var(--line);
+  border-radius: 12px;
+  background: rgba(255,255,255,.55);
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+.itin-stop-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.itin-stop-idx {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--coral);
+}
+.itin-stop label { margin: 0; }
+.next-stops {
+  margin-top: 0.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.next-stop-line {
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+}
+.next-stop-line strong { color: var(--ink); font-weight: 600; }
