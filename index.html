@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Noto+Sans+TC:wght@400;500;700&family=LXGW+WenKai+TC&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=24" />
+  <link rel="stylesheet" href="styles.css?v=25" />
 </head>
 <body>
   <div id="app">
@@ -295,6 +295,10 @@
               <input type="checkbox" id="syncAuto" />
               <span>儲存後自動上傳</span>
             </label>
+            <label class="check-row">
+              <input type="checkbox" id="syncAutoPull" />
+              <span>每次打開手帳自動從雲拉最新（雲端較新先覆蓋）</span>
+            </label>
             <div class="form-actions">
               <button type="button" class="btn btn-scan" id="btnSyncSave">儲存同步設定</button>
               <button type="button" class="btn btn-add" id="btnSyncPush">上傳到雲</button>
@@ -448,6 +452,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=24"></script>
+  <script src="app.js?v=25"></script>
 </body>
 </html>

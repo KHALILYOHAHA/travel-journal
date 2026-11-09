@@ -111,6 +111,9 @@
 
   function save() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    const meta = loadSyncMeta();
+    meta.localUpdatedAt = new Date().toISOString();
+    saveSyncMeta(meta);
     scheduleAutoSync();
   }
 
@@ -131,6 +134,8 @@
       token: "",
       gistId: "",
       autoSync: false,
+      autoPullOnOpen: false,
+      localUpdatedAt: null,
       lastPushAt: null,
       lastPullAt: null,
     };
@@ -145,6 +150,8 @@
           token: typeof p.token === "string" ? p.token : "",
           gistId: typeof p.gistId === "string" ? p.gistId : "",
           autoSync: !!p.autoSync,
+          autoPullOnOpen: !!p.autoPullOnOpen,
+          localUpdatedAt: p.localUpdatedAt || null,
           lastPushAt: p.lastPushAt || null,
           lastPullAt: p.lastPullAt || null,
         };
@@ -216,6 +223,8 @@
     if (tokenEl) tokenEl.value = meta.token || "";
     if (gistEl) gistEl.value = meta.gistId || "";
     if (autoEl) autoEl.checked = !!meta.autoSync;
+    const autoPullEl = document.getElementById("syncAutoPull");
+    if (autoPullEl) autoPullEl.checked = !!meta.autoPullOnOpen;
     updateSyncStatus();
   }
 
@@ -224,6 +233,19 @@
       token: (document.getElementById("syncToken").value || "").trim(),
       gistId: (document.getElementById("syncGistId").value || "").trim(),
       autoSync: !!document.getElementById("syncAuto").checked,
+      autoPullOnOpen: !!document.getElementById("syncAutoPull").checked,
+    };
+  }
+
+  function mergeSyncForm(prev, form) {
+    return {
+      token: form.token,
+      gistId: form.gistId,
+      autoSync: form.autoSync,
+      autoPullOnOpen: form.autoPullOnOpen,
+      localUpdatedAt: prev.localUpdatedAt || null,
+      lastPushAt: prev.lastPushAt || null,
+      lastPullAt: prev.lastPullAt || null,
     };
   }
 
@@ -335,21 +357,24 @@
     }
   }
 
-  async function pullFromCloud() {
+  async function pullFromCloud(opts) {
+    opts = opts || {};
+    const silent = !!opts.silent;
+    const onlyIfNewer = !!opts.onlyIfNewer;
     if (syncBusy) {
-      toast("同步進行中…");
+      if (!silent) toast("同步進行中…");
       return false;
     }
     const meta = loadSyncMeta();
     if (!meta.token) {
-      toast("請先填 Token 並儲存同步設定");
+      if (!silent) toast("請先填 Token 並儲存同步設定");
       return false;
     }
     if (!meta.gistId) {
-      toast("未有 Gist ID，請先上傳一次或手動填 ID");
+      if (!silent) toast("未有 Gist ID，請先上傳一次或手動填 ID");
       return false;
     }
-    if (!confirm("從雲下載會覆蓋呢部機嘅行程資料，確定？")) return false;
+    if (!silent && !confirm("從雲下載會覆蓋呢部機嘅行程資料，確定？")) return false;
     syncBusy = true;
     try {
       const gist = await gistFetch(meta.token, meta.gistId);
@@ -364,21 +389,37 @@
       let parsed = JSON.parse(file.content);
       let data = parsed;
       if (parsed && parsed.data && parsed.data.trip) data = parsed.data;
+      const cloudUpdated = (parsed && parsed.updatedAt) || null;
+      if (onlyIfNewer) {
+        const localTs = meta.localUpdatedAt ? Date.parse(meta.localUpdatedAt) : 0;
+        const cloudTs = cloudUpdated ? Date.parse(cloudUpdated) : 0;
+        if (!cloudTs || cloudTs <= localTs + 500) {
+          return false;
+        }
+      }
       applyJournalData(data);
       meta.lastPullAt = new Date().toISOString();
+      if (cloudUpdated) meta.localUpdatedAt = cloudUpdated;
       saveSyncMeta(meta);
       updateSyncStatus();
       renderAll();
       fillSettings();
-      toast("已從雲下載 ✓");
+      toast(silent ? "已從雲更新 ✓" : "已從雲下載 ✓");
       return true;
     } catch (err) {
       console.error(err);
-      toast((err && err.message) || "下載失敗");
+      if (!silent) toast((err && err.message) || "下載失敗");
+      else toast((err && err.message) || "自動下載失敗");
       return false;
     } finally {
       syncBusy = false;
     }
+  }
+
+  function autoPullOnOpen() {
+    const meta = loadSyncMeta();
+    if (!meta.autoPullOnOpen || !meta.token || !meta.gistId) return;
+    pullFromCloud({ silent: true, onlyIfNewer: true });
   }
 
   function scheduleAutoSync() {
@@ -1941,13 +1982,7 @@
     document.getElementById("btnSyncSave").addEventListener("click", () => {
       const form = readSyncForm();
       const prev = loadSyncMeta();
-      const meta = {
-        token: form.token,
-        gistId: form.gistId,
-        autoSync: form.autoSync,
-        lastPushAt: prev.lastPushAt || null,
-        lastPullAt: prev.lastPullAt || null,
-      };
+      const meta = mergeSyncForm(prev, form);
       saveSyncMeta(meta);
       updateSyncStatus();
       toast("同步設定已儲存 ✓");
@@ -1957,26 +1992,14 @@
       const form = readSyncForm();
       const prev = loadSyncMeta();
       // persist current form values before push so token/gistId stick
-      saveSyncMeta({
-        token: form.token,
-        gistId: form.gistId,
-        autoSync: form.autoSync,
-        lastPushAt: prev.lastPushAt || null,
-        lastPullAt: prev.lastPullAt || null,
-      });
+      saveSyncMeta(mergeSyncForm(prev, form));
       pushToCloud({ silent: false });
     });
 
     document.getElementById("btnSyncPull").addEventListener("click", () => {
       const form = readSyncForm();
       const prev = loadSyncMeta();
-      saveSyncMeta({
-        token: form.token,
-        gistId: form.gistId,
-        autoSync: form.autoSync,
-        lastPushAt: prev.lastPushAt || null,
-        lastPullAt: prev.lastPullAt || null,
-      });
+      saveSyncMeta(mergeSyncForm(prev, form));
       pullFromCloud();
     });
 
@@ -2021,4 +2044,5 @@
   bind();
   save(); // persist seed on first visit
   renderAll();
+  autoPullOnOpen();
 })();
