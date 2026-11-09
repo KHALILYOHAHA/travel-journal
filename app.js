@@ -874,6 +874,7 @@
         </div>`;
     }
 
+    const multi = routePts.length >= 2;
     stops.forEach((s, i) => {
       const q = stopMapsQuery(s);
       const href = mapsUrl(q);
@@ -884,8 +885,13 @@
       const toggleBtn = `<button type="button" class="btn btn-ghost sm stop-map-toggle ${on ? "" : "is-maps-off"}" data-toggle-stop-map="${escapeHtml(s.id)}" aria-pressed="${on ? "true" : "false"}">${
         on ? "隱藏地圖" : "顯示地圖"
       }</button>`;
-      // Place pin when this stop wants map and (single stop day, or always show pin for the stop)
-      const embed = on ? mapsEmbedUrl(q) : "";
+      // One shared route map covers multi-stop days. Per-stop embed only when:
+      // - single stop day, or
+      // - user turns this stop on AND day route map is off (avoid duplicate route maps)
+      const embed =
+        on && (!multi || !showDayRoute)
+          ? mapsEmbedUrl(q)
+          : "";
       const mapBlock = embed
         ? `<div class="day-stop-map"><iframe title="${escapeHtml(s.place || "地圖")}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen src="${escapeHtml(embed)}"></iframe></div>`
         : "";
@@ -913,8 +919,8 @@
       if (next) {
         const fromQ = stopRouteQuery(s);
         const toQ = stopRouteQuery(next);
-        const segEmbed = on ? mapsDirectionsEmbedUrl(fromQ, toQ) : "";
         const segHref = mapsDirectionsUrl(fromQ, toQ);
+        // No second route iframe — day route map already shows 1→2→…
         if (segHref) {
           html += `
           <div class="day-leg">
@@ -923,11 +929,6 @@
               <span class="day-leg-path">${escapeHtml(fromQ)} → ${escapeHtml(toQ)}</span>
               <a class="day-leg-open" href="${escapeHtml(segHref)}" target="_blank" rel="noopener">導航</a>
             </div>
-            ${
-              segEmbed
-                ? `<div class="day-stop-map day-leg-map"><iframe title="${escapeHtml(fromQ)} 到 ${escapeHtml(toQ)}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen src="${escapeHtml(segEmbed)}"></iframe></div>`
-                : ""
-            }
           </div>`;
         }
       }
