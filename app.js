@@ -11,6 +11,9 @@
   const GIST_FILENAME = "travel-journal-v2.json";
   /** Shared public gist — phones can pull with zero setup */
   const DEFAULT_PUBLIC_GIST_ID = "bd9a99b1449d9288d1b075d485d17c11";
+  const SHARE_MAP_KEY = "TRAVEL_JOURNAL_SHARE_MAP";
+  const SHARE_GIST_FILENAME = "travel-journal-share.json";
+  const SHARE_APP_BASE = "https://khalilyohaha.github.io/travel-journal/";
   const GITHUB_API = "https://api.github.com";
   const GITHUB_API_HEADERS_BASE = {
     Accept: "application/vnd.github+json",
@@ -514,6 +517,10 @@
   }
 
   function save() {
+    if (shareMode) {
+      toast("只讀分享，唔可以改");
+      return;
+    }
     flushActiveToStore();
     localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
     const meta = loadSyncMeta();
@@ -637,6 +644,7 @@
   // ---------- Cloud sync (GitHub Gist) + local backup ----------
   let autoSyncTimer = null;
   let syncBusy = false;
+  let shareMode = false;
 
   function defaultSyncMeta() {
     return {
@@ -791,7 +799,8 @@
     };
   }
 
-  function applyJournalData(data) {
+  function applyJournalData(data, opts) {
+    opts = opts || {};
     if (isMultiTripStore(data)) {
       store = normalizeStore(data);
     } else if (isSingleTripData(data)) {
@@ -801,7 +810,9 @@
     }
     activateTrip(store.activeTripId, { flush: false, persist: false });
     // write without re-triggering auto-sync loop mid-import
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+    if (opts.persist !== false) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+    }
   }
 
   async function gistCreate(token, payload, isPublic) {
@@ -865,6 +876,10 @@
   async function pushToCloud(opts) {
     opts = opts || {};
     const silent = !!opts.silent;
+    if (shareMode) {
+      if (!silent) toast("只讀分享，唔可以上傳");
+      return false;
+    }
     if (syncBusy) {
       if (!silent) toast("同步進行中…");
       return false;
@@ -943,6 +958,10 @@
     opts = opts || {};
     const silent = !!opts.silent;
     const onlyIfNewer = !!opts.onlyIfNewer;
+    if (shareMode) {
+      if (!silent) toast("只讀分享，唔會改本地資料");
+      return false;
+    }
     if (syncBusy) {
       if (!silent) toast("同步進行中…");
       return false;
@@ -1019,12 +1038,219 @@
   }
 
   function scheduleAutoSync() {
+    if (shareMode) return;
     const meta = loadSyncMeta();
     if (!meta.autoSync || !meta.token) return;
     clearTimeout(autoSyncTimer);
     autoSyncTimer = setTimeout(() => {
       pushToCloud({ silent: true });
     }, 1500);
+  }
+
+  // ---------- View-only share link (public Gist per trip) ----------
+  function readShareIdFromUrl() {
+    try {
+      const params = new URLSearchParams(location.search);
+      return (params.get("share") || "").trim();
+    } catch (_) {
+      return "";
+    }
+  }
+
+  function loadShareMap() {
+    try {
+      const raw = localStorage.getItem(SHARE_MAP_KEY);
+      if (raw) {
+        const p = JSON.parse(raw);
+        if (p && typeof p === "object") return p;
+      }
+    } catch (_) {}
+    return {};
+  }
+
+  function saveShareMap(map) {
+    localStorage.setItem(SHARE_MAP_KEY, JSON.stringify(map || {}));
+  }
+
+  function buildShareUrl(gistId) {
+    return SHARE_APP_BASE + "?share=" + encodeURIComponent(gistId) + "&v=42";
+  }
+
+  function buildSharePayload(tripRec) {
+    const rec = normalizeTripRecord(Object.assign({}, tripRec));
+    return {
+      version: 3,
+      kind: "share",
+      updatedAt: new Date().toISOString(),
+      data: {
+        version: 3,
+        activeTripId: rec.id,
+        trips: [rec],
+      },
+    };
+  }
+
+  async function copyShareUrl(text) {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+        return true;
+      }
+    } catch (_) {}
+    try {
+      window.prompt("複製呢條分享連結：", text);
+    } catch (_) {}
+    return false;
+  }
+
+  function showShareBanner(msg) {
+    const el = document.getElementById("shareBanner");
+    if (!el) return;
+    el.hidden = false;
+    const text = el.querySelector(".share-banner-text");
+    if (text && msg) text.textContent = msg;
+  }
+
+  function enterShareUi() {
+    shareMode = true;
+    document.body.classList.add("share-mode");
+    showShareBanner("只讀分享 — 呢條連結只可以睇，唔可以改。想自己整手帳請開主頁。");
+    const settingsTab = document.querySelector('.tab[data-tab="settings"]');
+    if (settingsTab) settingsTab.hidden = true;
+  }
+
+  async function gistCreateShare(token, payload, description) {
+    const body = {
+      description: description || "旅行手帳 · 分享（只讀）",
+      public: true,
+      files: {
+        [SHARE_GIST_FILENAME]: { content: JSON.stringify(payload, null, 2) },
+      },
+    };
+    const res = await fetch(GITHUB_API + "/gists", {
+      method: "POST",
+      headers: syncAuthHeaders(token),
+      body: JSON.stringify(body),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error((json && json.message) || ("建立分享 Gist 失敗（" + res.status + "）"));
+    }
+    return json;
+  }
+
+  async function gistUpdateShare(token, gistId, payload, description) {
+    const body = {
+      description: description || "旅行手帳 · 分享（只讀）",
+      public: true,
+      files: {
+        [SHARE_GIST_FILENAME]: { content: JSON.stringify(payload, null, 2) },
+      },
+    };
+    const res = await fetch(GITHUB_API + "/gists/" + encodeURIComponent(gistId), {
+      method: "PATCH",
+      headers: syncAuthHeaders(token),
+      body: JSON.stringify(body),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error((json && json.message) || ("更新分享 Gist 失敗（" + res.status + "）"));
+    }
+    return json;
+  }
+
+  async function shareTripLink(tripId) {
+    if (shareMode) {
+      toast("而家係只讀分享頁");
+      return;
+    }
+    flushActiveToStore();
+    const tripRec = (store.trips || []).find((t) => t.id === tripId);
+    if (!tripRec) {
+      toast("搵唔到呢個旅程");
+      return;
+    }
+    const meta = loadSyncMeta();
+    if (!meta.token) {
+      toast("要先喺「設定 → 雲同步」填 Token，先可以建立分享連結");
+      switchTab("settings");
+      return;
+    }
+    if (syncBusy) {
+      toast("同步進行中…");
+      return;
+    }
+    syncBusy = true;
+    try {
+      const title = (tripRec.trip && tripRec.trip.title) || "未命名旅程";
+      const payload = buildSharePayload(tripRec);
+      const desc = "旅行手帳 · 分享（只讀）：" + title;
+      const map = loadShareMap();
+      let gistId = typeof map[tripId] === "string" ? map[tripId] : "";
+      let gist;
+      if (gistId) {
+        try {
+          gist = await gistUpdateShare(meta.token, gistId, payload, desc);
+        } catch (err) {
+          // stale / deleted gist — create a new one
+          console.warn(err);
+          gist = await gistCreateShare(meta.token, payload, desc);
+          gistId = gist.id;
+        }
+      } else {
+        gist = await gistCreateShare(meta.token, payload, desc);
+        gistId = gist.id;
+      }
+      if (!gistId && gist && gist.id) gistId = gist.id;
+      map[tripId] = gistId;
+      saveShareMap(map);
+      const url = buildShareUrl(gistId);
+      const copied = await copyShareUrl(url);
+      toast(copied ? "已複製分享連結 ✓（只讀）" : "分享連結已準備好");
+      showShareBanner("分享連結已複製：其他人開條 link 就可以睇「" + title + "」（只讀）");
+      setTimeout(() => {
+        const el = document.getElementById("shareBanner");
+        if (el && !shareMode) el.hidden = true;
+      }, 8000);
+    } catch (err) {
+      console.error(err);
+      toast((err && err.message) || "建立分享連結失敗");
+    } finally {
+      syncBusy = false;
+    }
+  }
+
+  async function loadSharedView(gistId) {
+    enterShareUi();
+    toast("載入分享中…");
+    try {
+      const gist = await gistFetch("", gistId);
+      const files = gist.files || {};
+      const file =
+        files[SHARE_GIST_FILENAME] ||
+        files[GIST_FILENAME] ||
+        files[Object.keys(files).find((k) => /\.json$/i.test(k))] ||
+        null;
+      if (!file) throw new Error("分享 Gist 入面搵唔到 JSON");
+      const content = await resolveGistFileContent(file);
+      if (!content) throw new Error("分享內容係空嘅");
+      let parsed = JSON.parse(content);
+      let data = parsed;
+      if (parsed && parsed.data) data = parsed.data;
+      applyJournalData(data, { persist: false });
+      renderAll();
+      fillSettings();
+      switchTab("calendar");
+      const title = (state && state.trip && state.trip.title) || "旅程";
+      showShareBanner("只讀分享：「" + title + "」— 只可以睇，唔可以改。");
+      toast("已載入分享 ✓");
+      return true;
+    } catch (err) {
+      console.error(err);
+      showShareBanner("載入分享失敗 — " + ((err && err.message) || "未知錯誤"));
+      toast((err && err.message) || "載入分享失敗");
+      return false;
+    }
   }
 
   function exportJournalJson() {
@@ -1360,7 +1586,8 @@
             <button type="button" class="btn btn-scan sm" data-open-trip="${escapeHtml(tr.id)}" ${
               active ? "disabled" : ""
             }>${active ? "使用中" : "打開"}</button>
-            <button type="button" class="btn btn-danger sm" data-del-trip="${escapeHtml(tr.id)}">刪除</button>
+            <button type="button" class="btn btn-ghost sm share-hide" data-share-trip="${escapeHtml(tr.id)}">分享連結</button>
+            <button type="button" class="btn btn-danger sm share-hide" data-del-trip="${escapeHtml(tr.id)}">刪除</button>
           </div>
         </article>`;
       })
@@ -3193,8 +3420,11 @@
       tripsList.addEventListener("click", (e) => {
         const openBtn = e.target.closest("[data-open-trip]");
         const delBtn = e.target.closest("[data-del-trip]");
+        const shareBtn = e.target.closest("[data-share-trip]");
         if (openBtn) {
           switchToTrip(openBtn.getAttribute("data-open-trip"));
+        } else if (shareBtn) {
+          shareTripLink(shareBtn.getAttribute("data-share-trip"));
         } else if (delBtn) {
           deleteTrip(delBtn.getAttribute("data-del-trip"));
         }
@@ -3215,7 +3445,13 @@
 
   // boot
   bind();
-  save(); // persist seed on first visit
-  renderAll();
-  autoPullOnOpen();
+  const bootShareId = readShareIdFromUrl();
+  if (bootShareId) {
+    renderAll();
+    loadSharedView(bootShareId);
+  } else {
+    save(); // persist seed on first visit
+    renderAll();
+    autoPullOnOpen();
+  }
 })();

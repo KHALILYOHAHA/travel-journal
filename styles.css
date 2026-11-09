@@ -1430,3 +1430,55 @@ a.map-link[hidden] { display: none !important; }
   color: var(--ink-soft);
   line-height: 1.35;
 }
+
+
+/* ----- Share / read-only ----- */
+.share-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  margin: 0.55rem 0.85rem 0;
+  padding: 0.55rem 0.85rem;
+  border-radius: 12px;
+  border: 1.5px solid #e0b86a;
+  background: #fff7e6;
+  color: #7a5520;
+  font-size: 0.86rem;
+  line-height: 1.4;
+}
+.share-banner[hidden] { display: none !important; }
+.share-banner-text { margin: 0; font-weight: 600; flex: 1; min-width: 12rem; }
+.share-banner-home {
+  color: #7a5520;
+  font-weight: 700;
+  text-decoration: underline;
+  white-space: nowrap;
+}
+body.share-mode .share-hide,
+body.share-mode #btnNewTrip,
+body.share-mode #btnAddPretrip,
+body.share-mode #btnAddTodo,
+body.share-mode #btnAddStop,
+body.share-mode #btnEditDayItinerary,
+body.share-mode #btnScan,
+body.share-mode #btnAddExpense,
+body.share-mode #btnAddExpense2,
+body.share-mode #btnResetDemo,
+body.share-mode #btnSyncPush,
+body.share-mode #btnSyncPull,
+body.share-mode #btnSyncSave,
+body.share-mode #btnSyncClearToken,
+body.share-mode #btnFetchYahoo,
+body.share-mode #btnExportJson,
+body.share-mode .todo-actions,
+body.share-mode .settings-form button[type="submit"],
+body.share-mode #importJsonFile,
+body.share-mode label[for="importJsonFile"] {
+  display: none !important;
+}
+body.share-mode .todo-item input[type="checkbox"],
+body.share-mode .pretrip-card input[type="checkbox"] {
+  pointer-events: none;
+}

@@ -3,19 +3,19 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-      <link rel="icon" type="image/png" href="favicon-plane.png?v=41" />
+      <link rel="icon" type="image/png" href="favicon-plane.png?v=42" />
   <title>旅行手帳</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Noto+Sans+TC:wght@400;500;700&family=LXGW+WenKai+TC&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=41" />
+  <link rel="stylesheet" href="styles.css?v=42" />
 </head>
 <body>
   <div id="app">
     <!-- Top nav -->
     <header class="topbar">
       <div class="brand">
-        <img class="brand-icon" src="brand-plane.png?v=41" width="32" height="32" alt="" />
+        <img class="brand-icon" src="brand-plane.png?v=42" width="32" height="32" alt="" />
         <span class="brand-title">旅行手帳</span>
       </div>
       <nav class="tabs" role="tablist">
@@ -31,6 +31,11 @@
       </div>
     </header>
 
+    <div id="shareBanner" class="share-banner" hidden>
+      <p class="share-banner-text">只讀分享</p>
+      <a class="share-banner-home" href="./?v=42">開主頁（可編輯）</a>
+    </div>
+
     <main>
       <!-- ===== 旅程（多 trip） ===== -->
       <section id="view-trips" class="view" role="tabpanel">
@@ -39,7 +44,7 @@
             <h2 class="panel-title">旅程</h2>
             <button type="button" class="btn btn-add sm" id="btnNewTrip">＋ 新旅程</button>
           </div>
-          <p class="trips-intro">可以加多個旅行；撳「打開」切換而家編輯緊嗰個。</p>
+          <p class="trips-intro">可以加多個旅行；撳「打開」切換而家編輯緊嗰個。撳「分享連結」會建立公開只讀連結（要 Token；睇嘅人唔使）。</p>
           <div class="trips-list" id="tripsList"></div>
         </div>
       </section>
@@ -532,6 +537,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=41"></script>
+  <script src="app.js?v=42"></script>
 </body>
 </html>
