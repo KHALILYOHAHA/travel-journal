@@ -282,12 +282,16 @@
   }
 
   function parseHkabweRatesFromMarkdown(md) {
-    const text = String(md || "");
+    // Spot tables only — cut off forward rates section
+    let text = String(md || "");
+    const cut = text.search(/遠期匯價/);
+    if (cut >= 0) text = text.slice(0, cut);
     const rates = {};
     const re = /貨幣代號:\s*\n\s*([A-Z]{3})\s*\n[\s\S]*?賣出價:\s*\n\s*([0-9]+(?:\.[0-9]+)?)/g;
     let m;
     while ((m = re.exec(text))) {
       const code = m[1];
+      if (rates[code] != null) continue; // first (spot) wins
       const num = parseFloat(m[2]);
       if (!Number.isFinite(num)) continue;
       const opt = fxOption(code);
@@ -295,8 +299,8 @@
       rates[code] = opt.perHundred === false ? num : num / 100;
     }
     if (!Object.keys(rates).length) throw new Error("轉接頁解唔到 HKAB 賣出價");
-    const dateM = text.match(/以下是\s*\*?\*?([0-9]{4}-[0-9]{2}-[0-9]{2})\*?\*/);
-    const updM = text.match(/最後更新：\s*([0-9]{4}-[0-9]{2}-[0-9]{2}[^\n]*)/);
+    const dateM = String(md || "").match(/以下是\s*\*?\*?([0-9]{4}-[0-9]{2}-[0-9]{2})\*?\*/);
+    const updM = String(md || "").match(/最後更新：\s*([0-9]{4}-[0-9]{2}-[0-9]{2}[^\n]*)/);
     return {
       rates,
       rateDate: dateM ? dateM[1] : "",
