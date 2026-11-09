@@ -331,7 +331,8 @@
           const mq = dayMapsQuery(d);
           const mapHref =
             routePts.length >= 2 ? mapsMultiDirectionsUrl(routePts) : mapsUrl(mq);
-          const embed = !mapsVisible()
+          const anyOn = stops.some((s) => stopShowsMap(s));
+          const embed = !anyOn
             ? ""
             : routePts.length >= 2
             ? mapsMultiDirectionsEmbedUrl(routePts)
@@ -643,14 +644,23 @@
       place: String(o.place || o.route || "").trim(),
       note: String(o.note || "").trim(),
       maps: String(o.maps || "").trim(),
+      showMap: o.showMap !== false,
     };
   }
 
   function normalizeDayItinerary(raw) {
-    if (!raw) return { stops: [] };
-    if (Array.isArray(raw)) return { stops: raw.map(normalizeStop).filter((s) => s.place || s.note || s.maps) };
+    if (!raw) return { stops: [], showDayRouteMap: true };
+    if (Array.isArray(raw)) {
+      return {
+        stops: raw.map(normalizeStop).filter((s) => s.place || s.note || s.maps || s.time),
+        showDayRouteMap: true,
+      };
+    }
     if (raw.stops && Array.isArray(raw.stops)) {
-      return { stops: raw.stops.map(normalizeStop).filter((s) => s.place || s.note || s.maps) };
+      return {
+        stops: raw.stops.map(normalizeStop).filter((s) => s.place || s.note || s.maps || s.time),
+        showDayRouteMap: raw.showDayRouteMap !== false,
+      };
     }
     // Legacy single object { route, note, maps }
     const places = String(raw.route || "")
@@ -677,7 +687,7 @@
         maps: String(raw.maps || "").trim(),
       });
     }
-    return { stops };
+    return { stops, showDayRouteMap: true };
   }
 
   function normalizeItinerary(st) {
@@ -756,8 +766,8 @@
   function syncMapsToggleBtn() {
     const btn = document.getElementById("btnToggleMaps");
     if (!btn) return;
-    const on = mapsVisible();
-    btn.textContent = on ? "隱藏地圖" : "顯示地圖";
+    const on = dayAnyMapVisible(focusDate());
+    btn.textContent = on ? "全部隱藏地圖" : "全部顯示地圖";
     btn.setAttribute("aria-pressed", on ? "true" : "false");
     btn.classList.toggle("is-maps-off", !on);
   }
@@ -827,25 +837,29 @@
   function renderDayStops(date) {
     const el = document.getElementById("dayStopsList");
     if (!el) return;
-    const stops = sortStopsByTime(dayStops(date));
+    const day = normalizeDayItinerary((state.itinerary && state.itinerary[date]) || null);
+    const stops = sortStopsByTime(day.stops || []);
     syncMapsToggleBtn();
     if (!stops.length) {
       el.innerHTML = `<div class="day-stops-empty">未有地點 — 撳右上「＋ 加地點」開始排行程</div>`;
       return;
     }
 
-    const showMap = mapsVisible();
     const routePts = stops.map(stopRouteQuery).filter(Boolean);
+    const showDayRoute = day.showDayRouteMap !== false;
     let html = "";
 
     if (routePts.length >= 2) {
-      const fullEmbed = showMap ? mapsMultiDirectionsEmbedUrl(routePts) : "";
+      const fullEmbed = showDayRoute ? mapsMultiDirectionsEmbedUrl(routePts) : "";
       const fullHref = mapsMultiDirectionsUrl(routePts);
       html += `
         <div class="day-route-card">
           <div class="day-route-head">
             <span class="day-route-title">今日路線</span>
             <span class="day-route-sub">${escapeHtml(routePts.join(" → "))}</span>
+            <button type="button" class="btn btn-ghost sm" data-toggle-day-route="${escapeHtml(date)}" aria-pressed="${showDayRoute ? "true" : "false"}">${
+              showDayRoute ? "隱藏路線圖" : "顯示路線圖"
+            }</button>
             ${
               fullHref
                 ? `<a class="btn btn-ghost sm" href="${escapeHtml(fullHref)}" target="_blank" rel="noopener">開路線</a>`
@@ -863,11 +877,15 @@
     stops.forEach((s, i) => {
       const q = stopMapsQuery(s);
       const href = mapsUrl(q);
+      const on = stopShowsMap(s);
       const mapLink = href
         ? `<a class="todo-icon-btn" href="${escapeHtml(href)}" target="_blank" rel="noopener" aria-label="開地圖">🗺</a>`
         : "";
-      // Single stop: show place pin when maps on. Multi: covered by route overview.
-      const embed = showMap && routePts.length < 2 ? mapsEmbedUrl(q) : "";
+      const toggleBtn = `<button type="button" class="btn btn-ghost sm stop-map-toggle ${on ? "" : "is-maps-off"}" data-toggle-stop-map="${escapeHtml(s.id)}" aria-pressed="${on ? "true" : "false"}">${
+        on ? "隱藏地圖" : "顯示地圖"
+      }</button>`;
+      // Place pin when this stop wants map and (single stop day, or always show pin for the stop)
+      const embed = on ? mapsEmbedUrl(q) : "";
       const mapBlock = embed
         ? `<div class="day-stop-map"><iframe title="${escapeHtml(s.place || "地圖")}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen src="${escapeHtml(embed)}"></iframe></div>`
         : "";
@@ -883,6 +901,7 @@
               ${s.note ? `<div class="day-stop-note">${escapeHtml(s.note)}</div>` : ""}
             </div>
             <div class="next-actions">
+              ${toggleBtn}
               ${mapLink}
               <button type="button" class="todo-icon-btn" data-stop-edit="${escapeHtml(s.id)}" aria-label="編輯行程" title="編輯">✎</button>
             </div>
@@ -894,19 +913,15 @@
       if (next) {
         const fromQ = stopRouteQuery(s);
         const toQ = stopRouteQuery(next);
-        const segEmbed = showMap ? mapsDirectionsEmbedUrl(fromQ, toQ) : "";
+        const segEmbed = on ? mapsDirectionsEmbedUrl(fromQ, toQ) : "";
         const segHref = mapsDirectionsUrl(fromQ, toQ);
-        if (segEmbed || segHref) {
+        if (segHref) {
           html += `
           <div class="day-leg">
             <div class="day-leg-label">
               <span>↗ 前往下一站</span>
               <span class="day-leg-path">${escapeHtml(fromQ)} → ${escapeHtml(toQ)}</span>
-              ${
-                segHref
-                  ? `<a class="day-leg-open" href="${escapeHtml(segHref)}" target="_blank" rel="noopener">導航</a>`
-                  : ""
-              }
+              <a class="day-leg-open" href="${escapeHtml(segHref)}" target="_blank" rel="noopener">導航</a>
             </div>
             ${
               segEmbed
@@ -922,7 +937,48 @@
   }
 
   function emptyStop() {
-    return { id: uid("s"), time: "", place: "", note: "", maps: "" };
+    return { id: uid("s"), time: "", place: "", note: "", maps: "", showMap: true };
+  }
+
+  function stopShowsMap(stop) {
+    return !stop || stop.showMap !== false;
+  }
+
+  function ensureDayItin(d) {
+    if (!state.itinerary) state.itinerary = {};
+    state.itinerary[d] = normalizeDayItinerary(state.itinerary[d] || { stops: [] });
+    return state.itinerary[d];
+  }
+
+  function setStopShowMap(date, stopId, on) {
+    const day = ensureDayItin(date);
+    day.stops = day.stops.map((s) =>
+      s.id === stopId ? { ...s, showMap: !!on } : s
+    );
+    state.itinerary[date] = day;
+    save();
+  }
+
+  function setDayRouteMap(date, on) {
+    const day = ensureDayItin(date);
+    day.showDayRouteMap = !!on;
+    state.itinerary[date] = day;
+    save();
+  }
+
+  function dayAnyMapVisible(date) {
+    const day = normalizeDayItinerary((state.itinerary && state.itinerary[date]) || null);
+    if (day.showDayRouteMap !== false && (day.stops || []).length >= 2) return true;
+    return (day.stops || []).some((s) => stopShowsMap(s));
+  }
+
+  function setAllMapsForDay(date, on) {
+    const day = ensureDayItin(date);
+    day.showDayRouteMap = !!on;
+    day.stops = day.stops.map((s) => ({ ...s, showMap: !!on }));
+    state.itinerary[date] = day;
+    state.showMaps = !!on;
+    save();
   }
 
   function fmtStopTime(t) {
@@ -981,12 +1037,15 @@
         const place = (row.querySelector('[data-f="place"]') || {}).value || "";
         const note = (row.querySelector('[data-f="note"]') || {}).value || "";
         const maps = (row.querySelector('[data-f="maps"]') || {}).value || "";
+        const prev = (state.itinerary[document.getElementById("itinDate").value] || {}).stops || [];
+        const old = prev.find((x) => x.id === row.getAttribute("data-stop-row"));
         return {
           id: row.getAttribute("data-stop-row") || uid("s"),
           time: time.trim(),
           place: place.trim(),
           note: note.trim(),
           maps: maps.trim(),
+          showMap: old ? old.showMap !== false : true,
         };
       })
       .filter((s) => s.place || s.note || s.maps || s.time);
@@ -1209,11 +1268,12 @@
     });
 
     document.getElementById("btnToggleMaps").addEventListener("click", () => {
-      state.showMaps = !mapsVisible();
-      save();
+      const d = focusDate();
+      const turnOn = !dayAnyMapVisible(d);
+      setAllMapsForDay(d, turnOn);
       syncMapsToggleBtn();
       renderCalendar();
-      toast(state.showMaps ? "已顯示地圖 🗺" : "已隱藏地圖");
+      toast(turnOn ? "今日地圖已全部顯示 🗺" : "今日地圖已全部隱藏");
     });
 
     document.getElementById("btnAddStop").addEventListener("click", () => {
@@ -1237,6 +1297,23 @@
     });
 
     document.getElementById("dayStopsList").addEventListener("click", (e) => {
+      const routeBtn = e.target.closest("[data-toggle-day-route]");
+      if (routeBtn) {
+        const d = routeBtn.getAttribute("data-toggle-day-route") || focusDate();
+        const day = normalizeDayItinerary((state.itinerary && state.itinerary[d]) || null);
+        setDayRouteMap(d, day.showDayRouteMap === false);
+        renderCalendar();
+        return;
+      }
+      const mapBtn = e.target.closest("[data-toggle-stop-map]");
+      if (mapBtn) {
+        const id = mapBtn.getAttribute("data-toggle-stop-map");
+        const d = focusDate();
+        const stop = dayStops(d).find((s) => s.id === id);
+        setStopShowMap(d, id, !(stop && stopShowsMap(stop)));
+        renderCalendar();
+        return;
+      }
       if (e.target.closest("[data-stop-edit]")) {
         openItineraryModal(focusDate());
       }
@@ -1269,7 +1346,11 @@
       state.cities[d] = city;
       state.dayTitles[d] = title;
       if (stops.length) {
-        state.itinerary[d] = { stops: sortStopsByTime(stops) };
+        const prev = normalizeDayItinerary(state.itinerary[d] || null);
+        state.itinerary[d] = {
+          stops: sortStopsByTime(stops),
+          showDayRouteMap: prev.showDayRouteMap !== false,
+        };
       } else {
         delete state.itinerary[d];
       }

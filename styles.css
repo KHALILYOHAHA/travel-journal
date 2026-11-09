@@ -1015,3 +1015,21 @@ a.map-link[hidden] { display: none !important; }
   background: rgba(91, 124, 153, 0.12);
   border-color: var(--blue, #5b7c99);
 }
+
+.stop-map-toggle {
+  font-size: 0.72rem !important;
+  padding: 0.2rem 0.45rem !important;
+  white-space: nowrap;
+}
+.stop-map-toggle.is-maps-off,
+#btnToggleMaps.is-maps-off {
+  background: rgba(91, 124, 153, 0.12);
+  border-color: var(--blue, #5b7c99);
+}
+.day-stop-top .next-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.25rem;
+  max-width: 11rem;
+}
