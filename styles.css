@@ -208,7 +208,7 @@ main { flex: 1; padding: 1.25rem 1rem 2.5rem; }
 .route-map { width: 100%; height: auto; display: block; border-radius: 10px; }
 .map-label { font-family: var(--hand); font-size: 13px; fill: var(--ink); font-weight: 700; }
 
-.expense-card { background: #f8f0de; }
+.expense-card { background: var(--cream); }
 .expense-big {
   font-size: 1.85rem;
   font-weight: 700;
@@ -1069,10 +1069,10 @@ a.map-link[hidden] { display: none !important; }
 
 .expense-footer {
   grid-column: 1 / -1;
-  margin: 0 1.2rem 1.2rem;
+  margin: 0 1.6rem 1.2rem;
   position: relative;
   z-index: 1;
 }
 @media (max-width: 900px) {
-  .expense-footer { margin: 0 1rem 1rem; }
+  .expense-footer { margin: 0 1.2rem 1.2rem; }
 }
