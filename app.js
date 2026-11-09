@@ -135,6 +135,7 @@
       gistId: "",
       autoSync: false,
       autoPullOnOpen: false,
+      publicGist: false,
       localUpdatedAt: null,
       lastPushAt: null,
       lastPullAt: null,
@@ -151,6 +152,7 @@
           gistId: typeof p.gistId === "string" ? p.gistId : "",
           autoSync: !!p.autoSync,
           autoPullOnOpen: !!p.autoPullOnOpen,
+          publicGist: !!p.publicGist,
           localUpdatedAt: p.localUpdatedAt || null,
           lastPushAt: p.lastPushAt || null,
           lastPullAt: p.lastPullAt || null,
@@ -206,6 +208,7 @@
           escapeHtml(meta.gistId) +
           "</a>"
       );
+      parts.push(meta.publicGist ? "公開（第二部機唔使 Token）" : "私人（拉都要 Token）");
     } else {
       parts.push("尚未建立 Gist");
     }
@@ -213,6 +216,24 @@
     if (meta.lastPullAt) parts.push("上次下載：" + fmtSyncTime(meta.lastPullAt));
     if (!meta.token) parts.push("未儲存 Token");
     el.innerHTML = parts.join(" · ");
+    const hint = document.getElementById("syncPublicLinkHint");
+    if (hint) {
+      if (meta.gistId) {
+        hint.innerHTML =
+          "公開同步 ID：<code>" +
+          escapeHtml(meta.gistId) +
+          "</code> · 頁面：<a href=\"https://gist.github.com/" +
+          encodeURIComponent(meta.gistId) +
+          '" target="_blank" rel="noopener">gist.github.com/…/' +
+          escapeHtml(meta.gistId) +
+          "</a> · raw 可用 <code>…/raw/" +
+          escapeHtml(GIST_FILENAME) +
+          "</code>（公開 Gist 唔使 Token）";
+      } else {
+        hint.textContent =
+          "已有 Gist 可填 ID。公開 Gist 可用 API 或 raw 連結拉資料，唔使 Token。";
+      }
+    }
   }
 
   function fillSyncForm() {
@@ -225,6 +246,8 @@
     if (autoEl) autoEl.checked = !!meta.autoSync;
     const autoPullEl = document.getElementById("syncAutoPull");
     if (autoPullEl) autoPullEl.checked = !!meta.autoPullOnOpen;
+    const publicEl = document.getElementById("syncPublicGist");
+    if (publicEl) publicEl.checked = !!meta.publicGist;
     updateSyncStatus();
   }
 
@@ -234,6 +257,7 @@
       gistId: (document.getElementById("syncGistId").value || "").trim(),
       autoSync: !!document.getElementById("syncAuto").checked,
       autoPullOnOpen: !!document.getElementById("syncAutoPull").checked,
+      publicGist: !!document.getElementById("syncPublicGist").checked,
     };
   }
 
@@ -243,6 +267,7 @@
       gistId: form.gistId,
       autoSync: form.autoSync,
       autoPullOnOpen: form.autoPullOnOpen,
+      publicGist: !!form.publicGist,
       localUpdatedAt: prev.localUpdatedAt || null,
       lastPushAt: prev.lastPushAt || null,
       lastPullAt: prev.lastPullAt || null,
@@ -264,10 +289,10 @@
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   }
 
-  async function gistCreate(token, payload) {
+  async function gistCreate(token, payload, isPublic) {
     const body = {
       description: "旅行手帳 · Travel Journal sync",
-      public: false,
+      public: !!isPublic,
       files: {
         [GIST_FILENAME]: { content: JSON.stringify(payload, null, 2) },
       },
@@ -284,12 +309,15 @@
     return json;
   }
 
-  async function gistUpdate(token, gistId, payload) {
+  async function gistUpdate(token, gistId, payload, opts) {
+    opts = opts || {};
     const body = {
       files: {
         [GIST_FILENAME]: { content: JSON.stringify(payload, null, 2) },
       },
     };
+    // GitHub may ignore public on PATCH for existing private gists; caller handles recreate.
+    if (opts.makePublic) body.public = true;
     const res = await fetch(GITHUB_API + "/gists/" + encodeURIComponent(gistId), {
       method: "PATCH",
       headers: syncAuthHeaders(token),
@@ -303,16 +331,17 @@
   }
 
   async function gistFetch(token, gistId) {
-    const headers = Object.assign(
-      { Authorization: "Bearer " + token },
-      GITHUB_API_HEADERS_BASE
-    );
+    const headers = Object.assign({}, GITHUB_API_HEADERS_BASE);
+    if (token) headers.Authorization = "Bearer " + token;
     const res = await fetch(GITHUB_API + "/gists/" + encodeURIComponent(gistId), {
       method: "GET",
       headers: headers,
     });
     const json = await res.json().catch(() => ({}));
     if (!res.ok) {
+      if ((res.status === 404 || res.status === 403) && !token) {
+        throw new Error("讀取失敗：Gist 可能係私人，請用公開 Gist，或者喺呢部機填 Token");
+      }
       throw new Error((json && json.message) || ("讀取 Gist 失敗（" + res.status + "）"));
     }
     return json;
@@ -334,19 +363,44 @@
     try {
       const payload = buildSyncPayload();
       let gist;
+      const wantPublic = !!meta.publicGist;
       if (meta.gistId) {
-        gist = await gistUpdate(meta.token, meta.gistId, payload);
+        gist = await gistUpdate(meta.token, meta.gistId, payload, {
+          makePublic: wantPublic,
+        });
+        // private→public via PATCH often ignored; recreate as public when needed
+        if (wantPublic && gist && gist.public === false) {
+          gist = await gistCreate(meta.token, payload, true);
+          meta.gistId = gist.id;
+          const gistEl = document.getElementById("syncGistId");
+          if (gistEl) gistEl.value = meta.gistId;
+          if (!silent) {
+            toast("已新建公開 Gist（舊私人 Gist 無法直接改公開）");
+          }
+        }
       } else {
-        gist = await gistCreate(meta.token, payload);
+        gist = await gistCreate(meta.token, payload, wantPublic);
         meta.gistId = gist.id;
         const gistEl = document.getElementById("syncGistId");
         if (gistEl) gistEl.value = meta.gistId;
       }
+      if (gist && typeof gist.public === "boolean") {
+        meta.publicGist = !!gist.public;
+        const publicEl = document.getElementById("syncPublicGist");
+        if (publicEl) publicEl.checked = meta.publicGist;
+      }
       meta.lastPushAt = new Date().toISOString();
       saveSyncMeta(meta);
       updateSyncStatus();
-      if (!silent) toast("已上傳到雲 ✓");
-      else toast("已同步 ✓");
+      if (!silent) {
+        toast(
+          wantPublic || (gist && gist.public)
+            ? "已上傳到公開雲 ✓（第二部機只填 Gist ID）"
+            : "已上傳到雲 ✓"
+        );
+      } else {
+        toast("已同步 ✓");
+      }
       return true;
     } catch (err) {
       console.error(err);
@@ -355,6 +409,19 @@
     } finally {
       syncBusy = false;
     }
+  }
+
+  async function resolveGistFileContent(file) {
+    if (file && typeof file.content === "string" && file.content && !file.truncated) {
+      return file.content;
+    }
+    const rawUrl = file && file.raw_url;
+    if (!rawUrl) return null;
+    const res = await fetch(rawUrl, { method: "GET" });
+    if (!res.ok) {
+      throw new Error("讀取 Gist raw 失敗（" + res.status + "）");
+    }
+    return await res.text();
   }
 
   async function pullFromCloud(opts) {
@@ -366,27 +433,35 @@
       return false;
     }
     const meta = loadSyncMeta();
-    if (!meta.token) {
-      if (!silent) toast("請先填 Token 並儲存同步設定");
-      return false;
-    }
     if (!meta.gistId) {
       if (!silent) toast("未有 Gist ID，請先上傳一次或手動填 ID");
       return false;
     }
+    if (!meta.token && !silent) {
+      // token-less pull is OK for public gists
+    }
     if (!silent && !confirm("從雲下載會覆蓋呢部機嘅行程資料，確定？")) return false;
     syncBusy = true;
     try {
-      const gist = await gistFetch(meta.token, meta.gistId);
+      const gist = await gistFetch(meta.token || "", meta.gistId);
+      if (gist && typeof gist.public === "boolean") {
+        meta.publicGist = !!gist.public;
+        const publicEl = document.getElementById("syncPublicGist");
+        if (publicEl) publicEl.checked = meta.publicGist;
+      }
       const files = gist.files || {};
       const file =
         files[GIST_FILENAME] ||
         files[Object.keys(files).find((k) => /\.json$/i.test(k))] ||
         null;
-      if (!file || !file.content) {
+      if (!file) {
         throw new Error("Gist 入面搵唔到 " + GIST_FILENAME);
       }
-      let parsed = JSON.parse(file.content);
+      const content = await resolveGistFileContent(file);
+      if (!content) {
+        throw new Error("Gist 入面搵唔到 " + GIST_FILENAME);
+      }
+      let parsed = JSON.parse(content);
       let data = parsed;
       if (parsed && parsed.data && parsed.data.trip) data = parsed.data;
       const cloudUpdated = (parsed && parsed.updatedAt) || null;
@@ -418,7 +493,11 @@
 
   function autoPullOnOpen() {
     const meta = loadSyncMeta();
-    if (!meta.autoPullOnOpen || !meta.token || !meta.gistId) return;
+    // Public gist: gistId + autoPull is enough (no token). Private still needs token.
+    if (!meta.autoPullOnOpen || !meta.gistId) return;
+    if (!meta.token && meta.publicGist === false) {
+      // still try unauthenticated; public gists work even if flag unset locally
+    }
     pullFromCloud({ silent: true, onlyIfNewer: true });
   }
 

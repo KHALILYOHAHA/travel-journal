@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Noto+Sans+TC:wght@400;500;700&family=LXGW+WenKai+TC&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=25" />
+  <link rel="stylesheet" href="styles.css?v=26" />
 </head>
 <body>
   <div id="app">
@@ -283,21 +283,26 @@
           <div class="settings-form rough-card sync-card" id="syncCard">
             <h3 class="sync-card-title">雲同步</h3>
             <p class="field-hint">用 GitHub Gist 喺唔同裝置同步行程。Token 只存呢部瀏覽器，唔會一齊上傳去 Gist。</p>
-            <label>GitHub Personal Access Token
+            <label>GitHub Personal Access Token（上傳／改行程先要；第二部機只拉最新可留空）
               <input type="password" id="syncToken" autocomplete="off" placeholder="ghp_… 或 github_pat_…" />
             </label>
             <p class="field-hint">要用 classic PAT（勾 <code>gist</code>），或者 fine-grained token 開 Gists 讀寫權限。<a href="https://github.com/settings/tokens" target="_blank" rel="noopener">去 GitHub 開 Token</a></p>
-            <label>Gist ID（第一次上傳可留空，會自動建立）
+            <label>公開同步 ID / 連結（Gist ID；第二部機只填呢個就得）
               <input type="text" id="syncGistId" autocomplete="off" placeholder="例如 abc123def…" />
             </label>
-            <p class="field-hint">已有 Gist 可填 ID，或開 <a href="https://gist.github.com" target="_blank" rel="noopener">gist.github.com</a> 睇自己嘅 private gist。</p>
+            <p class="field-hint" id="syncPublicLinkHint">已有 Gist 可填 ID。公開 Gist 可用 API 或 raw 連結拉資料，唔使 Token。</p>
+            <label class="check-row">
+              <input type="checkbox" id="syncPublicGist" />
+              <span>用公開 Gist（第二部機唔使 Token 都可以拉）</span>
+            </label>
+            <p class="field-hint sync-warn">注意：公開 Gist = 任何人有個 ID 都可以睇到手帳 JSON（包括開支等）。唔想公開就唔好剔，第二部機就要填 Token。</p>
             <label class="check-row">
               <input type="checkbox" id="syncAuto" />
-              <span>儲存後自動上傳</span>
+              <span>儲存後自動上傳（要 Token）</span>
             </label>
             <label class="check-row">
               <input type="checkbox" id="syncAutoPull" />
-              <span>每次打開手帳自動從雲拉最新（雲端較新先覆蓋）</span>
+              <span>每次打開手帳自動從雲拉最新（雲端較新先覆蓋；公開 Gist 唔使 Token）</span>
             </label>
             <div class="form-actions">
               <button type="button" class="btn btn-scan" id="btnSyncSave">儲存同步設定</button>
@@ -452,6 +457,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=25"></script>
+  <script src="app.js?v=26"></script>
 </body>
 </html>
