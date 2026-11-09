@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Noto+Sans+TC:wght@400;500;700&family=LXGW+WenKai+TC&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=23" />
+  <link rel="stylesheet" href="styles.css?v=24" />
 </head>
 <body>
   <div id="app">
@@ -279,7 +279,44 @@
               <button type="button" class="btn btn-ghost" id="btnResetDemo">重設示範資料</button>
             </div>
           </form>
-          <p class="hint">資料存喺呢部瀏覽器嘅 localStorage，刷新唔會冇。</p>
+
+          <div class="settings-form rough-card sync-card" id="syncCard">
+            <h3 class="sync-card-title">雲同步</h3>
+            <p class="field-hint">用 GitHub Gist 喺唔同裝置同步行程。Token 只存呢部瀏覽器，唔會一齊上傳去 Gist。</p>
+            <label>GitHub Personal Access Token
+              <input type="password" id="syncToken" autocomplete="off" placeholder="ghp_… 或 github_pat_…" />
+            </label>
+            <p class="field-hint">要用 classic PAT（勾 <code>gist</code>），或者 fine-grained token 開 Gists 讀寫權限。<a href="https://github.com/settings/tokens" target="_blank" rel="noopener">去 GitHub 開 Token</a></p>
+            <label>Gist ID（第一次上傳可留空，會自動建立）
+              <input type="text" id="syncGistId" autocomplete="off" placeholder="例如 abc123def…" />
+            </label>
+            <p class="field-hint">已有 Gist 可填 ID，或開 <a href="https://gist.github.com" target="_blank" rel="noopener">gist.github.com</a> 睇自己嘅 private gist。</p>
+            <label class="check-row">
+              <input type="checkbox" id="syncAuto" />
+              <span>儲存後自動上傳</span>
+            </label>
+            <div class="form-actions">
+              <button type="button" class="btn btn-scan" id="btnSyncSave">儲存同步設定</button>
+              <button type="button" class="btn btn-add" id="btnSyncPush">上傳到雲</button>
+              <button type="button" class="btn btn-add" id="btnSyncPull">從雲下載</button>
+              <button type="button" class="btn btn-ghost" id="btnSyncClearToken">清除 Token</button>
+            </div>
+            <p class="sync-status" id="syncStatus">尚未同步</p>
+          </div>
+
+          <div class="settings-form rough-card sync-card" id="backupCard">
+            <h3 class="sync-card-title">本機備份</h3>
+            <p class="field-hint">唔使登入都可以手動備份／還原成個行程 JSON。</p>
+            <div class="form-actions">
+              <button type="button" class="btn btn-scan" id="btnExportJson">匯出 JSON</button>
+              <label class="btn btn-add file-btn">
+                匯入 JSON
+                <input type="file" id="importJsonFile" accept="application/json,.json" hidden />
+              </label>
+            </div>
+          </div>
+
+          <p class="hint">資料預設存喺呢部瀏覽器嘅 localStorage；想換機同步，用上面「雲同步」或者「本機備份」。</p>
         </div>
       </section>
     </main>
@@ -411,6 +448,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=23"></script>
+  <script src="app.js?v=24"></script>
 </body>
 </html>

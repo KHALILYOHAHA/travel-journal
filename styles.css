@@ -557,13 +557,15 @@ main { flex: 1; padding: 1.25rem 1rem 2.5rem; }
 .panel-head .panel-title { margin: 0; }
 .filters { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
 .select, .settings-form input, .settings-form select,
-#expenseForm input, #expenseForm select {
+#expenseForm input, #expenseForm select,
+.sync-card input[type="text"], .sync-card input[type="password"] {
   border: 1.5px solid var(--line);
   border-radius: 10px;
   padding: 0.45rem 0.65rem;
   background: var(--cream);
 }
-.select:focus, .settings-form input:focus, #expenseForm input:focus, #expenseForm select:focus {
+.select:focus, .settings-form input:focus, #expenseForm input:focus, #expenseForm select:focus,
+.sync-card input[type="text"]:focus, .sync-card input[type="password"]:focus {
   outline: none;
   border-color: var(--blue);
   box-shadow: 0 0 0 3px rgba(107,155,209,.25);
@@ -695,6 +697,50 @@ main { flex: 1; padding: 1.25rem 1rem 2.5rem; }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
 .form-actions { display: flex; gap: 0.65rem; flex-wrap: wrap; margin-top: 0.35rem; }
 .hint { font-size: 0.82rem; color: var(--ink-soft); margin-top: 1rem; }
+
+.sync-card {
+  margin-top: 1.1rem;
+  max-width: 520px;
+}
+.sync-card-title {
+  font-family: var(--hand);
+  font-size: 1.25rem;
+  margin: 0 0 0.35rem;
+}
+.sync-card .field-hint { margin: -0.15rem 0 0.35rem; }
+.sync-card .field-hint code {
+  font-size: 0.78em;
+  background: var(--cream);
+  padding: 0.05rem 0.3rem;
+  border-radius: 4px;
+}
+.sync-card .field-hint a { color: var(--blue); }
+.check-row {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  gap: 0.55rem !important;
+  font-weight: 600;
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+}
+.check-row input[type="checkbox"] {
+  width: 1.05rem;
+  height: 1.05rem;
+  accent-color: var(--blue);
+}
+.sync-status {
+  margin: 0.35rem 0 0;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+  line-height: 1.4;
+}
+.sync-status a { color: var(--blue); }
+.file-btn {
+  cursor: pointer;
+  margin: 0;
+}
+.file-btn input { display: none; }
 
 /* Modal */
 .modal {

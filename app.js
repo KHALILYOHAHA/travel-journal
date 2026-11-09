@@ -6,6 +6,13 @@
   "use strict";
 
   const STORAGE_KEY = "TRAVEL_JOURNAL_V2";
+  const SYNC_KEY = "TRAVEL_JOURNAL_SYNC";
+  const GIST_FILENAME = "travel-journal-v2.json";
+  const GITHUB_API = "https://api.github.com";
+  const GITHUB_API_HEADERS_BASE = {
+    Accept: "application/vnd.github+json",
+    "X-GitHub-Api-Version": "2022-11-28",
+  };
   const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
   const CAT_COLORS = {
     交通: "#6b9bd1",
@@ -104,6 +111,7 @@
 
   function save() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    scheduleAutoSync();
   }
 
   let state = load();
@@ -113,6 +121,318 @@
   if (!Array.isArray(state.pretrip)) state.pretrip = seedData().pretrip;
   if (!state.trip) state.trip = {};
   if (!state.trip.travelMode) state.trip.travelMode = "driving";
+
+  // ---------- Cloud sync (GitHub Gist) + local backup ----------
+  let autoSyncTimer = null;
+  let syncBusy = false;
+
+  function defaultSyncMeta() {
+    return {
+      token: "",
+      gistId: "",
+      autoSync: false,
+      lastPushAt: null,
+      lastPullAt: null,
+    };
+  }
+
+  function loadSyncMeta() {
+    try {
+      const raw = localStorage.getItem(SYNC_KEY);
+      if (raw) {
+        const p = JSON.parse(raw);
+        return {
+          token: typeof p.token === "string" ? p.token : "",
+          gistId: typeof p.gistId === "string" ? p.gistId : "",
+          autoSync: !!p.autoSync,
+          lastPushAt: p.lastPushAt || null,
+          lastPullAt: p.lastPullAt || null,
+        };
+      }
+    } catch (_) {}
+    return defaultSyncMeta();
+  }
+
+  function saveSyncMeta(meta) {
+    localStorage.setItem(SYNC_KEY, JSON.stringify(meta));
+  }
+
+  function syncAuthHeaders(token) {
+    return Object.assign(
+      {
+        Authorization: "Bearer " + token,
+        "Content-Type": "application/json",
+      },
+      GITHUB_API_HEADERS_BASE
+    );
+  }
+
+  function buildSyncPayload() {
+    return {
+      version: 2,
+      updatedAt: new Date().toISOString(),
+      data: state,
+    };
+  }
+
+  function fmtSyncTime(iso) {
+    if (!iso) return "—";
+    try {
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return iso;
+      return d.toLocaleString("zh-HK", { hour12: false });
+    } catch (_) {
+      return iso;
+    }
+  }
+
+  function updateSyncStatus() {
+    const el = document.getElementById("syncStatus");
+    if (!el) return;
+    const meta = loadSyncMeta();
+    const parts = [];
+    if (meta.gistId) {
+      parts.push(
+        'Gist：<a href="https://gist.github.com/' +
+          encodeURIComponent(meta.gistId) +
+          '" target="_blank" rel="noopener">' +
+          escapeHtml(meta.gistId) +
+          "</a>"
+      );
+    } else {
+      parts.push("尚未建立 Gist");
+    }
+    if (meta.lastPushAt) parts.push("上次上傳：" + fmtSyncTime(meta.lastPushAt));
+    if (meta.lastPullAt) parts.push("上次下載：" + fmtSyncTime(meta.lastPullAt));
+    if (!meta.token) parts.push("未儲存 Token");
+    el.innerHTML = parts.join(" · ");
+  }
+
+  function fillSyncForm() {
+    const meta = loadSyncMeta();
+    const tokenEl = document.getElementById("syncToken");
+    const gistEl = document.getElementById("syncGistId");
+    const autoEl = document.getElementById("syncAuto");
+    if (tokenEl) tokenEl.value = meta.token || "";
+    if (gistEl) gistEl.value = meta.gistId || "";
+    if (autoEl) autoEl.checked = !!meta.autoSync;
+    updateSyncStatus();
+  }
+
+  function readSyncForm() {
+    return {
+      token: (document.getElementById("syncToken").value || "").trim(),
+      gistId: (document.getElementById("syncGistId").value || "").trim(),
+      autoSync: !!document.getElementById("syncAuto").checked,
+    };
+  }
+
+  function applyJournalData(data) {
+    if (!data || !data.trip || !Array.isArray(data.expenses)) {
+      throw new Error("JSON 格式唔啱（需要 trip 同 expenses）");
+    }
+    state = data;
+    normalizeItinerary(state);
+    if (typeof state.showMaps !== "boolean") state.showMaps = true;
+    if (typeof state.showPretrip !== "boolean") state.showPretrip = true;
+    if (!Array.isArray(state.pretrip)) state.pretrip = seedData().pretrip;
+    if (!state.trip) state.trip = {};
+    if (!state.trip.travelMode) state.trip.travelMode = "driving";
+    // write without re-triggering auto-sync loop mid-import
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }
+
+  async function gistCreate(token, payload) {
+    const body = {
+      description: "旅行手帳 · Travel Journal sync",
+      public: false,
+      files: {
+        [GIST_FILENAME]: { content: JSON.stringify(payload, null, 2) },
+      },
+    };
+    const res = await fetch(GITHUB_API + "/gists", {
+      method: "POST",
+      headers: syncAuthHeaders(token),
+      body: JSON.stringify(body),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error((json && json.message) || ("建立 Gist 失敗（" + res.status + "）"));
+    }
+    return json;
+  }
+
+  async function gistUpdate(token, gistId, payload) {
+    const body = {
+      files: {
+        [GIST_FILENAME]: { content: JSON.stringify(payload, null, 2) },
+      },
+    };
+    const res = await fetch(GITHUB_API + "/gists/" + encodeURIComponent(gistId), {
+      method: "PATCH",
+      headers: syncAuthHeaders(token),
+      body: JSON.stringify(body),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error((json && json.message) || ("更新 Gist 失敗（" + res.status + "）"));
+    }
+    return json;
+  }
+
+  async function gistFetch(token, gistId) {
+    const headers = Object.assign(
+      { Authorization: "Bearer " + token },
+      GITHUB_API_HEADERS_BASE
+    );
+    const res = await fetch(GITHUB_API + "/gists/" + encodeURIComponent(gistId), {
+      method: "GET",
+      headers: headers,
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error((json && json.message) || ("讀取 Gist 失敗（" + res.status + "）"));
+    }
+    return json;
+  }
+
+  async function pushToCloud(opts) {
+    opts = opts || {};
+    const silent = !!opts.silent;
+    if (syncBusy) {
+      if (!silent) toast("同步進行中…");
+      return false;
+    }
+    const meta = loadSyncMeta();
+    if (!meta.token) {
+      if (!silent) toast("請先填 Token 並儲存同步設定");
+      return false;
+    }
+    syncBusy = true;
+    try {
+      const payload = buildSyncPayload();
+      let gist;
+      if (meta.gistId) {
+        gist = await gistUpdate(meta.token, meta.gistId, payload);
+      } else {
+        gist = await gistCreate(meta.token, payload);
+        meta.gistId = gist.id;
+        const gistEl = document.getElementById("syncGistId");
+        if (gistEl) gistEl.value = meta.gistId;
+      }
+      meta.lastPushAt = new Date().toISOString();
+      saveSyncMeta(meta);
+      updateSyncStatus();
+      if (!silent) toast("已上傳到雲 ✓");
+      else toast("已同步 ✓");
+      return true;
+    } catch (err) {
+      console.error(err);
+      toast((err && err.message) || "上傳失敗");
+      return false;
+    } finally {
+      syncBusy = false;
+    }
+  }
+
+  async function pullFromCloud() {
+    if (syncBusy) {
+      toast("同步進行中…");
+      return false;
+    }
+    const meta = loadSyncMeta();
+    if (!meta.token) {
+      toast("請先填 Token 並儲存同步設定");
+      return false;
+    }
+    if (!meta.gistId) {
+      toast("未有 Gist ID，請先上傳一次或手動填 ID");
+      return false;
+    }
+    if (!confirm("從雲下載會覆蓋呢部機嘅行程資料，確定？")) return false;
+    syncBusy = true;
+    try {
+      const gist = await gistFetch(meta.token, meta.gistId);
+      const files = gist.files || {};
+      const file =
+        files[GIST_FILENAME] ||
+        files[Object.keys(files).find((k) => /\.json$/i.test(k))] ||
+        null;
+      if (!file || !file.content) {
+        throw new Error("Gist 入面搵唔到 " + GIST_FILENAME);
+      }
+      let parsed = JSON.parse(file.content);
+      let data = parsed;
+      if (parsed && parsed.data && parsed.data.trip) data = parsed.data;
+      applyJournalData(data);
+      meta.lastPullAt = new Date().toISOString();
+      saveSyncMeta(meta);
+      updateSyncStatus();
+      renderAll();
+      fillSettings();
+      toast("已從雲下載 ✓");
+      return true;
+    } catch (err) {
+      console.error(err);
+      toast((err && err.message) || "下載失敗");
+      return false;
+    } finally {
+      syncBusy = false;
+    }
+  }
+
+  function scheduleAutoSync() {
+    const meta = loadSyncMeta();
+    if (!meta.autoSync || !meta.token) return;
+    clearTimeout(autoSyncTimer);
+    autoSyncTimer = setTimeout(() => {
+      pushToCloud({ silent: true });
+    }, 1500);
+  }
+
+  function exportJournalJson() {
+    const payload = buildSyncPayload();
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {
+      type: "application/json",
+    });
+    const a = document.createElement("a");
+    const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+    a.href = URL.createObjectURL(blob);
+    a.download = "travel-journal-" + stamp + ".json";
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      URL.revokeObjectURL(a.href);
+      a.remove();
+    }, 500);
+    toast("已匯出 JSON ✓");
+  }
+
+  function importJournalJsonFile(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(reader.result);
+        let data = parsed;
+        if (parsed && parsed.data && parsed.data.trip) data = parsed.data;
+        if (!data || !data.trip || !Array.isArray(data.expenses)) {
+          toast("JSON 格式唔啱（需要 trip 同 expenses）");
+          return;
+        }
+        if (!confirm("匯入會覆蓋呢部機嘅行程資料，確定？")) return;
+        applyJournalData(data);
+        renderAll();
+        fillSettings();
+        toast("已匯入 JSON ✓");
+      } catch (err) {
+        console.error(err);
+        toast((err && err.message) || "匯入失敗");
+      }
+    };
+    reader.onerror = () => toast("讀檔失敗");
+    reader.readAsText(file);
+  }
 
   function uid(prefix) {
     return prefix + "_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -577,6 +897,7 @@
     document.getElementById("setRate").value = state.trip.jpyToHkd;
     const modeEl = document.getElementById("setTravelMode");
     if (modeEl) modeEl.value = state.trip.travelMode || "driving";
+    fillSyncForm();
   }
 
   // ---------- Modal ----------
@@ -1615,6 +1936,67 @@
           renderCalendar();
         }
       }
+    });
+
+    document.getElementById("btnSyncSave").addEventListener("click", () => {
+      const form = readSyncForm();
+      const prev = loadSyncMeta();
+      const meta = {
+        token: form.token,
+        gistId: form.gistId,
+        autoSync: form.autoSync,
+        lastPushAt: prev.lastPushAt || null,
+        lastPullAt: prev.lastPullAt || null,
+      };
+      saveSyncMeta(meta);
+      updateSyncStatus();
+      toast("同步設定已儲存 ✓");
+    });
+
+    document.getElementById("btnSyncPush").addEventListener("click", () => {
+      const form = readSyncForm();
+      const prev = loadSyncMeta();
+      // persist current form values before push so token/gistId stick
+      saveSyncMeta({
+        token: form.token,
+        gistId: form.gistId,
+        autoSync: form.autoSync,
+        lastPushAt: prev.lastPushAt || null,
+        lastPullAt: prev.lastPullAt || null,
+      });
+      pushToCloud({ silent: false });
+    });
+
+    document.getElementById("btnSyncPull").addEventListener("click", () => {
+      const form = readSyncForm();
+      const prev = loadSyncMeta();
+      saveSyncMeta({
+        token: form.token,
+        gistId: form.gistId,
+        autoSync: form.autoSync,
+        lastPushAt: prev.lastPushAt || null,
+        lastPullAt: prev.lastPullAt || null,
+      });
+      pullFromCloud();
+    });
+
+    document.getElementById("btnSyncClearToken").addEventListener("click", () => {
+      if (!confirm("清除呢部機儲存嘅 GitHub Token？")) return;
+      const meta = loadSyncMeta();
+      meta.token = "";
+      saveSyncMeta(meta);
+      const tokenEl = document.getElementById("syncToken");
+      if (tokenEl) tokenEl.value = "";
+      updateSyncStatus();
+      toast("已清除 Token");
+    });
+
+    document.getElementById("btnExportJson").addEventListener("click", exportJournalJson);
+
+    document.getElementById("importJsonFile").addEventListener("change", (e) => {
+      const file = e.target.files && e.target.files[0];
+      importJournalJsonFile(file);
+      e.target.value = "";
     });
 
     document.addEventListener("keydown", (e) => {
