@@ -650,6 +650,7 @@
       note: String(o.note || "").trim(),
       maps: String(o.maps || "").trim(),
       showMap: o.showMap !== false,
+      toNextMode: normalizeTravelMode(o.toNextMode, true),
     };
   }
 
@@ -786,17 +787,38 @@
     return place || "";
   }
 
-  function travelMode() {
-    const m = (state.trip && state.trip.travelMode) || "driving";
-    if (["driving", "transit", "walking", "bicycling"].includes(m)) return m;
-    return "driving";
+  function normalizeTravelMode(m, allowEmpty) {
+    const v = String(m || "").trim();
+    if (!v) return allowEmpty ? "" : "driving";
+    if (["driving", "transit", "walking", "bicycling"].includes(v)) return v;
+    return allowEmpty ? "" : "driving";
   }
 
-  function travelModeDirflg() {
-    return { driving: "d", transit: "r", walking: "w", bicycling: "b" }[travelMode()] || "d";
+  function travelModeLabel(mode) {
+    return (
+      {
+        driving: "自駕",
+        transit: "公共交通",
+        walking: "步行",
+        bicycling: "單車",
+      }[mode] || "自駕"
+    );
   }
 
-  function mapsDirectionsEmbedUrl(from, to) {
+  function tripTravelMode() {
+    return normalizeTravelMode(state.trip && state.trip.travelMode, false);
+  }
+
+  function resolveTravelMode(override) {
+    const o = normalizeTravelMode(override, true);
+    return o || tripTravelMode();
+  }
+
+  function travelModeDirflg(mode) {
+    return { driving: "d", transit: "r", walking: "w", bicycling: "b" }[resolveTravelMode(mode)] || "d";
+  }
+
+  function mapsDirectionsEmbedUrl(from, to, mode) {
     const a = String(from || "").trim();
     const b = String(to || "").trim();
     if (!a || !b) return "";
@@ -806,12 +828,12 @@
       "&daddr=" +
       encodeURIComponent(b) +
       "&dirflg=" +
-      travelModeDirflg() +
+      travelModeDirflg(mode) +
       "&hl=zh-TW&output=embed"
     );
   }
 
-  function mapsDirectionsUrl(from, to) {
+  function mapsDirectionsUrl(from, to, mode) {
     const a = String(from || "").trim();
     const b = String(to || "").trim();
     if (!a || !b) return "";
@@ -821,14 +843,14 @@
       "&destination=" +
       encodeURIComponent(b) +
       "&travelmode=" +
-      encodeURIComponent(travelMode())
+      encodeURIComponent(resolveTravelMode(mode))
     );
   }
 
-  function mapsMultiDirectionsEmbedUrl(places) {
+  function mapsMultiDirectionsEmbedUrl(places, mode) {
     const pts = (places || []).map((p) => String(p || "").trim()).filter(Boolean);
     if (pts.length < 2) return "";
-    if (pts.length === 2) return mapsDirectionsEmbedUrl(pts[0], pts[1]);
+    if (pts.length === 2) return mapsDirectionsEmbedUrl(pts[0], pts[1], mode);
     const saddr = encodeURIComponent(pts[0]);
     const daddr =
       encodeURIComponent(pts[1]) +
@@ -842,15 +864,15 @@
       "&daddr=" +
       daddr +
       "&dirflg=" +
-      travelModeDirflg() +
+      travelModeDirflg(mode) +
       "&hl=zh-TW&output=embed"
     );
   }
 
-  function mapsMultiDirectionsUrl(places) {
+  function mapsMultiDirectionsUrl(places, mode) {
     const pts = (places || []).map((p) => String(p || "").trim()).filter(Boolean);
     if (pts.length < 2) return "";
-    if (pts.length === 2) return mapsDirectionsUrl(pts[0], pts[1]);
+    if (pts.length === 2) return mapsDirectionsUrl(pts[0], pts[1], mode);
     let url =
       "https://www.google.com/maps/dir/?api=1&origin=" +
       encodeURIComponent(pts[0]) +
@@ -858,7 +880,7 @@
       encodeURIComponent(pts[pts.length - 1]);
     const mid = pts.slice(1, -1);
     if (mid.length) url += "&waypoints=" + encodeURIComponent(mid.join("|"));
-    url += "&travelmode=" + encodeURIComponent(travelMode());
+    url += "&travelmode=" + encodeURIComponent(resolveTravelMode(mode));
     return url;
   }
 
@@ -878,8 +900,9 @@
     let html = "";
 
     if (routePts.length >= 2) {
-      const fullEmbed = showDayRoute ? mapsMultiDirectionsEmbedUrl(routePts) : "";
-      const fullHref = mapsMultiDirectionsUrl(routePts);
+      const overviewMode = resolveTravelMode(stops[0] && stops[0].toNextMode);
+      const fullEmbed = showDayRoute ? mapsMultiDirectionsEmbedUrl(routePts, overviewMode) : "";
+      const fullHref = mapsMultiDirectionsUrl(routePts, overviewMode);
       html += `
         <div class="day-route-card">
           <div class="day-route-head">
@@ -947,16 +970,17 @@
       if (next) {
         const fromQ = stopRouteQuery(s);
         const toQ = stopRouteQuery(next);
-        const segHref = mapsDirectionsUrl(fromQ, toQ);
+        const legMode = resolveTravelMode(s.toNextMode);
+        const segHref = mapsDirectionsUrl(fromQ, toQ, legMode);
         // 只有兩站時，全日路線圖已經係 1→2，唔好再重複。
         // 三站或以上：每一段（例如 2→3）獨立顯示路線圖。
         const segEmbed =
-          stops.length >= 3 && on ? mapsDirectionsEmbedUrl(fromQ, toQ) : "";
+          stops.length >= 3 && on ? mapsDirectionsEmbedUrl(fromQ, toQ, legMode) : "";
         if (segHref) {
           html += `
           <div class="day-leg">
             <div class="day-leg-label">
-              <span>↗ 前往下一站</span>
+              <span>↗ 前往下一站 · ${escapeHtml(travelModeLabel(legMode))}</span>
               <span class="day-leg-path">${escapeHtml(fromQ)} → ${escapeHtml(toQ)}</span>
               <a class="day-leg-open" href="${escapeHtml(segHref)}" target="_blank" rel="noopener">導航</a>
             </div>
@@ -974,7 +998,7 @@
   }
 
   function emptyStop() {
-    return { id: uid("s"), time: "", place: "", note: "", maps: "", showMap: true };
+    return { id: uid("s"), time: "", place: "", note: "", maps: "", showMap: true, toNextMode: "" };
   }
 
   function stopShowsMap(stop) {
@@ -1060,6 +1084,15 @@
           <label>Google 地圖（可選）
             <input type="text" data-f="maps" value="${escapeHtml(s.maps)}" placeholder="地名或 Maps 連結" maxlength="300" />
           </label>
+          <label>去下一站交通（可選）
+            <select data-f="toNextMode">
+              <option value="" ${!s.toNextMode ? "selected" : ""}>跟設定預設（${escapeHtml(travelModeLabel(tripTravelMode()))}）</option>
+              <option value="driving" ${s.toNextMode === "driving" ? "selected" : ""}>自駕</option>
+              <option value="transit" ${s.toNextMode === "transit" ? "selected" : ""}>公共交通</option>
+              <option value="walking" ${s.toNextMode === "walking" ? "selected" : ""}>步行</option>
+              <option value="bicycling" ${s.toNextMode === "bicycling" ? "selected" : ""}>單車</option>
+            </select>
+          </label>
         </div>`;
       })
       .join("");
@@ -1074,6 +1107,7 @@
         const place = (row.querySelector('[data-f="place"]') || {}).value || "";
         const note = (row.querySelector('[data-f="note"]') || {}).value || "";
         const maps = (row.querySelector('[data-f="maps"]') || {}).value || "";
+        const toNextMode = (row.querySelector('[data-f="toNextMode"]') || {}).value || "";
         const prev = (state.itinerary[document.getElementById("itinDate").value] || {}).stops || [];
         const old = prev.find((x) => x.id === row.getAttribute("data-stop-row"));
         return {
@@ -1083,6 +1117,7 @@
           note: note.trim(),
           maps: maps.trim(),
           showMap: old ? old.showMap !== false : true,
+          toNextMode: normalizeTravelMode(toNextMode, true),
         };
       })
       .filter((s) => s.place || s.note || s.maps || s.time);
@@ -1269,10 +1304,10 @@
       state.trip.end = document.getElementById("setEnd").value;
       state.trip.budget = Number(document.getElementById("setBudget").value) || 0;
       state.trip.jpyToHkd = Number(document.getElementById("setRate").value) || 0.052;
-      const mode = document.getElementById("setTravelMode").value || "driving";
-      state.trip.travelMode = ["driving", "transit", "walking", "bicycling"].includes(mode)
-        ? mode
-        : "driving";
+      state.trip.travelMode = normalizeTravelMode(
+        document.getElementById("setTravelMode").value,
+        false
+      );
       const comps = document
         .getElementById("setCompanions")
         .value.split(/[,、，]/)
