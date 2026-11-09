@@ -1405,3 +1405,26 @@ a.map-link[hidden] { display: none !important; }
 @media (max-width: 900px) {
   .expense-footer { margin: 0 1.2rem 1.2rem; }
 }
+
+
+/* ----- FX / HKAB ----- */
+.fx-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 0.75rem 0.85rem;
+  border: 1.5px dashed var(--line);
+  border-radius: 12px;
+  background: rgba(255,255,255,.35);
+}
+.fx-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+.fx-meta {
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  line-height: 1.35;
+}

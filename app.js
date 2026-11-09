@@ -26,6 +26,31 @@
     其他: "#9a9a9a",
   };
 
+  /** HKAB-backed FX options. Most Selling quotes are per 100 FC → HKD; GBP is per 1. */
+  const HKAB_RATES_URL = "https://www.hkab.org.hk/tc/rates/exchange-rates";
+  const FX_OPTIONS = [
+    { code: "HKD", label: "港幣／唔用外幣", symbol: "$", perHundred: false, none: true },
+    { code: "JPY", label: "日元 (JPY)", symbol: "¥", perHundred: true },
+    { code: "USD", label: "美元 (USD)", symbol: "US$", perHundred: true },
+    { code: "EUR", label: "歐羅 (EUR)", symbol: "€", perHundred: true },
+    { code: "GBP", label: "英鎊 (GBP)", symbol: "£", perHundred: false },
+    { code: "CNY", label: "人民幣在岸 (CNY)", symbol: "¥", perHundred: true },
+    { code: "CNH", label: "人民幣離岸 (CNH)", symbol: "¥", perHundred: true },
+    { code: "NTD", label: "新台幣 (NTD)", symbol: "NT$", perHundred: true },
+    { code: "WON", label: "韓圜 (WON)", symbol: "₩", perHundred: true },
+    { code: "THB", label: "泰銖 (THB)", symbol: "฿", perHundred: true },
+    { code: "SGD", label: "新加坡元 (SGD)", symbol: "S$", perHundred: true },
+    { code: "AUD", label: "澳元 (AUD)", symbol: "A$", perHundred: true },
+    { code: "CAD", label: "加元 (CAD)", symbol: "C$", perHundred: true },
+    { code: "CHF", label: "瑞士法郎 (CHF)", symbol: "CHF", perHundred: true },
+    { code: "MYR", label: "馬幣 (MYR)", symbol: "RM", perHundred: true },
+    { code: "NZD", label: "紐西蘭元 (NZD)", symbol: "NZ$", perHundred: true },
+    { code: "PHP", label: "菲律賓披索 (PHP)", symbol: "₱", perHundred: true },
+    { code: "INR", label: "印度盧比 (INR)", symbol: "₹", perHundred: true },
+  ];
+  let hkabweCache = null; // { rates:{CODE: per1}, rateDate, updatedAt, fetchedAt }
+
+
   /** Demo "today" fixed to Day 1 of the trip so the prototype always looks alive */
   const DEMO_TODAY = "2026-12-15";
 
@@ -37,6 +62,8 @@
         end: "2026-12-21",
         budget: 0,
         companions: ["Khalil", "旅伴二", "旅伴三", "旅伴四"],
+        fxCurrency: "JPY",
+        fxRate: 0.0523,
         jpyToHkd: 0.0523,
         travelMode: "driving",
       },
@@ -131,9 +158,183 @@
     if (!rec.selectedDate) rec.selectedDate = rec.trip.start || DEMO_TODAY;
     if (!rec.calMonth && rec.trip.start) rec.calMonth = String(rec.trip.start).slice(0, 7);
     if (!rec.calMonth) rec.calMonth = "2026-12";
+    normalizeTripFx(rec.trip);
     normalizeItinerary(rec);
     return rec;
   }
+
+  function fxOption(code) {
+    const c = String(code || "HKD").toUpperCase();
+    return FX_OPTIONS.find((o) => o.code === c) || FX_OPTIONS[0];
+  }
+
+  function normalizeTripFx(trip) {
+    if (!trip || typeof trip !== "object") return;
+    let code = trip.fxCurrency;
+    let rate =
+      trip.fxRate != null && trip.fxRate !== ""
+        ? Number(trip.fxRate)
+        : Number(trip.jpyToHkd);
+    if (code == null || code === "") {
+      code = Number(trip.jpyToHkd) > 0 ? "JPY" : "HKD";
+    }
+    code = String(code).toUpperCase();
+    if (code === "NONE" || code === "NULL") code = "HKD";
+    if (!FX_OPTIONS.some((o) => o.code === code)) {
+      code = Number(trip.jpyToHkd) > 0 ? "JPY" : "HKD";
+    }
+    if (code === "HKD") {
+      rate = 0;
+    } else if (!Number.isFinite(rate) || rate < 0) {
+      rate = Number(trip.jpyToHkd) || 0;
+    }
+    trip.fxCurrency = code;
+    trip.fxRate = rate;
+    trip.jpyToHkd = rate; // backward compatible
+  }
+
+  function activeFxRate() {
+    normalizeTripFx(state.trip);
+    return Number(state.trip.fxRate) || 0;
+  }
+
+  function activeFxCode() {
+    normalizeTripFx(state.trip);
+    return state.trip.fxCurrency || "HKD";
+  }
+
+  function fxEnabled() {
+    const code = activeFxCode();
+    return code !== "HKD" && activeFxRate() > 0;
+  }
+
+  function formatLocalMoney(amount) {
+    const opt = fxOption(activeFxCode());
+    const n = money(amount);
+    if (opt.symbol && opt.symbol.length <= 2) return opt.code + " " + opt.symbol + n;
+    return opt.code + " " + n;
+  }
+
+  function syncExpLocalLabel() {
+    const wrap = document.getElementById("expLocalWrap");
+    const lab = document.getElementById("expLocalLabel");
+    const input = document.getElementById("expJpy");
+    if (!wrap || !lab || !input) return;
+    if (!fxEnabled()) {
+      wrap.hidden = true;
+      return;
+    }
+    wrap.hidden = false;
+    const opt = fxOption(activeFxCode());
+    lab.textContent = opt.label + "金額（可選）";
+  }
+
+  function resolveNuxtValue(data, x, depth, seen) {
+    if (depth > 12) return x;
+    if (typeof x === "number" && Number.isInteger(x) && x >= 0 && x < data.length) {
+      if (seen.has(x)) return x;
+      seen.add(x);
+      return resolveNuxtValue(data, data[x], depth + 1, seen);
+    }
+    return x;
+  }
+
+  function parseHkabweRatesFromHtml(html) {
+    const m = String(html).match(/<script[^>]*id="__NUXT_DATA__"[^>]*>([\s\S]*?)<\/script>/i);
+    if (!m) throw new Error("搵唔到 HKAB 匯率資料（__NUXT_DATA__）");
+    let data;
+    try {
+      data = JSON.parse(m[1]);
+    } catch (_) {
+      throw new Error("HKAB 匯率 JSON 解唔開");
+    }
+    if (!Array.isArray(data)) throw new Error("HKAB 匯率格式唔啱");
+
+    let rateObj = null;
+    for (let i = 0; i < data.length; i++) {
+      const v = data[i];
+      if (v && typeof v === "object" && !Array.isArray(v) && "JPYSelling" in v) {
+        rateObj = v;
+        break;
+      }
+    }
+    if (!rateObj) throw new Error("HKAB 頁面未見 Selling 牌價");
+
+    const rates = {};
+    FX_OPTIONS.forEach((opt) => {
+      if (opt.none) return;
+      const key = opt.code + "Selling";
+      if (!(key in rateObj)) return;
+      const raw = resolveNuxtValue(data, rateObj[key], 0, new Set());
+      const num = typeof raw === "number" ? raw : parseFloat(String(raw).replace(/,/g, ""));
+      if (!Number.isFinite(num)) return;
+      rates[opt.code] = opt.perHundred === false ? num : num / 100;
+    });
+
+    const rateDate = resolveNuxtValue(data, rateObj.RateDate, 0, new Set());
+    const updatedAt = resolveNuxtValue(data, rateObj.updated_at, 0, new Set());
+    return {
+      rates,
+      rateDate: rateDate != null ? String(rateDate) : "",
+      updatedAt: updatedAt != null ? String(updatedAt) : "",
+      fetchedAt: new Date().toISOString(),
+    };
+  }
+
+  async function fetchHkabweRates() {
+    const res = await fetch(HKAB_RATES_URL, {
+      method: "GET",
+      headers: { Accept: "text/html" },
+      cache: "no-store",
+    });
+    if (!res.ok) throw new Error("連線 HKAB 失敗（" + res.status + "）");
+    const html = await res.text();
+    const parsed = parseHkabweRatesFromHtml(html);
+    hkabweCache = parsed;
+    return parsed;
+  }
+
+  function applyFxRateToForm(code, rate, meta) {
+    const rateEl = document.getElementById("setRate");
+    const curEl = document.getElementById("setFxCurrency");
+    if (curEl && code) curEl.value = code;
+    if (rateEl && rate != null && Number.isFinite(Number(rate))) {
+      // keep readable precision
+      const n = Number(rate);
+      rateEl.value = n === 0 ? "0" : String(Math.round(n * 1e8) / 1e8);
+    }
+    updateFxMeta(meta);
+  }
+
+  function updateFxMeta(meta) {
+    const el = document.getElementById("fxMeta");
+    if (!el) return;
+    const m = meta || {
+      rateDate: state.trip.fxSourceDate,
+      updatedAt: state.trip.fxSourceUpdatedAt,
+      fetchedAt: state.trip.fxFetchedAt,
+    };
+    const parts = [];
+    if (m && m.rateDate) parts.push("牌價日 " + m.rateDate);
+    if (m && m.updatedAt) parts.push("更新 " + m.updatedAt);
+    else if (m && m.fetchedAt) {
+      try {
+        parts.push("抓取 " + new Date(m.fetchedAt).toLocaleString("zh-HK", { hour12: false }));
+      } catch (_) {}
+    }
+    el.textContent = parts.length ? "HKAB：" + parts.join(" · ") : "";
+  }
+
+  function fillFxCurrencySelect() {
+    const sel = document.getElementById("setFxCurrency");
+    if (!sel) return;
+    const cur = activeFxCode();
+    sel.innerHTML = FX_OPTIONS.map(
+      (o) =>
+        `<option value="${o.code}" ${o.code === cur ? "selected" : ""}>${escapeHtml(o.label)}</option>`
+    ).join("");
+  }
+
 
   function wrapSingleAsStore(data) {
     const rec = normalizeTripRecord(Object.assign({}, data || seedData()));
@@ -272,6 +473,8 @@
         end,
         budget,
         companions,
+        fxCurrency: "HKD",
+        fxRate: 0,
         jpyToHkd: 0,
         travelMode: "transit",
       },
@@ -763,9 +966,9 @@
   }
 
   function hkdToJpy(hkd) {
-    const rate = Number(state.trip.jpyToHkd) || 0;
+    const rate = activeFxRate();
     if (!rate) return 0;
-    return Math.round(hkd / rate);
+    return Math.round(Number(hkd) / rate);
   }
 
   function totalSpent(expenses) {
@@ -1113,9 +1316,8 @@
     const budget = Number(state.trip.budget) || 0;
     const pct = budget > 0 ? Math.min(100, Math.round((spent / budget) * 100)) : 0;
     document.getElementById("calSpentHkd").textContent = `HKD $${money(spent)}`;
-    const fx = Number(state.trip.jpyToHkd) || 0;
-    document.getElementById("calSpentJpy").textContent = fx
-      ? `約當地 ${money(hkdToJpy(spent))}`
+    document.getElementById("calSpentJpy").textContent = fxEnabled()
+      ? `約 ${formatLocalMoney(hkdToJpy(spent))}`
       : "未設外幣匯率";
     document.getElementById("calProgressBar").style.width = pct + "%";
     document.getElementById("calBudgetPct").textContent = budget > 0 ? pct + "%" : "未設定";
@@ -1327,8 +1529,8 @@
       <span>顯示 <strong>${list.length}</strong> 筆</span>
       <span>小計 <strong>HKD $${money(sum)}</strong></span>
       ${
-        Number(state.trip.jpyToHkd)
-          ? `<span>約當地 <strong>${money(hkdToJpy(sum))}</strong></span>`
+        fxEnabled()
+          ? `<span>約 <strong>${formatLocalMoney(hkdToJpy(sum))}</strong></span>`
           : ""
       }`;
 
@@ -1376,7 +1578,7 @@
         </div>
         <div>
           <div class="li-amt">HKD $${money(e.hkd)}
-            ${e.jpy ? `<div class="li-jpy">當地 ${money(e.jpy)}</div>` : ""}
+            ${e.jpy ? `<div class="li-jpy">${fxEnabled() ? escapeHtml(activeFxCode()) + " " : "當地 "}${money(e.jpy)}</div>` : ""}
           </div>
           <div class="li-actions">
             <button type="button" class="btn btn-ghost sm" data-edit="${e.id}">編輯</button>
@@ -1561,7 +1763,9 @@
     document.getElementById("setEnd").value = state.trip.end;
     document.getElementById("setBudget").value = state.trip.budget;
     document.getElementById("setCompanions").value = (state.trip.companions || []).join("、");
-    document.getElementById("setRate").value = state.trip.jpyToHkd;
+    fillFxCurrencySelect();
+    document.getElementById("setRate").value = activeFxRate();
+    updateFxMeta();
     const modeEl = document.getElementById("setTravelMode");
     if (modeEl) modeEl.value = state.trip.travelMode || "driving";
     fillSyncForm();
@@ -1599,6 +1803,7 @@
     document.getElementById("expTitle").value = expense ? expense.title : "";
     document.getElementById("expHkd").value = expense ? expense.hkd : "";
     document.getElementById("expJpy").value = expense && expense.jpy ? expense.jpy : "";
+    syncExpLocalLabel();
     document.getElementById("expCat").value = expense ? expense.cat : "飲食";
     document.getElementById("expPayer").value = expense ? expense.payer : companions[0] || "";
     document.getElementById("expNote").value = expense ? expense.note || "" : "";
@@ -2293,7 +2498,8 @@
         splitWith,
         note: document.getElementById("expNote").value.trim(),
       };
-      if (!entry.jpy && entry.hkd) entry.jpy = hkdToJpy(entry.hkd);
+      if (!entry.jpy && entry.hkd && fxEnabled()) entry.jpy = hkdToJpy(entry.hkd);
+      if (!fxEnabled()) entry.jpy = entry.jpy || null;
 
       if (id) {
         const i = state.expenses.findIndex((x) => x.id === id);
@@ -2312,10 +2518,10 @@
       if (e.target && e.target.name === "expSplitWith") updateSplitCount();
     });
 
-    // Auto-fill JPY when HKD changes
+    // Auto-fill local currency when HKD changes
     document.getElementById("expHkd").addEventListener("change", () => {
       const h = Number(document.getElementById("expHkd").value);
-      if (h && !document.getElementById("expJpy").value) {
+      if (fxEnabled() && h && !document.getElementById("expJpy").value) {
         document.getElementById("expJpy").value = hkdToJpy(h);
       }
     });
@@ -2516,13 +2722,83 @@
       }
     });
 
+    const fxSel = document.getElementById("setFxCurrency");
+    if (fxSel) {
+      fxSel.addEventListener("change", () => {
+        const code = fxSel.value;
+        const opt = fxOption(code);
+        const rateEl = document.getElementById("setRate");
+        if (opt.none) {
+          if (rateEl) rateEl.value = "0";
+          updateFxMeta();
+          return;
+        }
+        if (hkabweCache && hkabweCache.rates && hkabweCache.rates[code] != null) {
+          applyFxRateToForm(code, hkabweCache.rates[code], hkabweCache);
+          return;
+        }
+        // keep current rate unless empty
+        if (rateEl && (!rateEl.value || Number(rateEl.value) === 0)) {
+          // leave for user / fetch
+        }
+      });
+    }
+
+    const btnFx = document.getElementById("btnFetchHkabwe");
+    if (btnFx) {
+      btnFx.addEventListener("click", async () => {
+        const code = (document.getElementById("setFxCurrency").value || "JPY").toUpperCase();
+        if (code === "HKD") {
+          toast("而家揀咗唔用外幣");
+          return;
+        }
+        btnFx.disabled = true;
+        const prev = btnFx.textContent;
+        btnFx.textContent = "更新中…";
+        try {
+          const snap = await fetchHkabweRates();
+          const rate = snap.rates[code];
+          if (rate == null || !Number.isFinite(rate)) {
+            throw new Error("未有 " + code + " 賣出價");
+          }
+          applyFxRateToForm(code, rate, snap);
+          state.trip.fxCurrency = code;
+          state.trip.fxRate = rate;
+          state.trip.jpyToHkd = rate;
+          state.trip.fxSourceDate = snap.rateDate || "";
+          state.trip.fxSourceUpdatedAt = snap.updatedAt || "";
+          state.trip.fxFetchedAt = snap.fetchedAt || new Date().toISOString();
+          save();
+          renderAll();
+          toast(
+            "已更新 " +
+              code +
+              " 賣出價" +
+              (snap.rateDate ? "（" + snap.rateDate + "）" : "") +
+              " ✓"
+          );
+        } catch (err) {
+          console.error(err);
+          toast((err && err.message) || "更新 HKAB 牌價失敗");
+        } finally {
+          btnFx.disabled = false;
+          btnFx.textContent = prev;
+        }
+      });
+    }
+
     document.getElementById("settingsForm").addEventListener("submit", (e) => {
       e.preventDefault();
       state.trip.title = document.getElementById("setTitle").value.trim();
       state.trip.start = document.getElementById("setStart").value;
       state.trip.end = document.getElementById("setEnd").value;
       state.trip.budget = Number(document.getElementById("setBudget").value) || 0;
-      state.trip.jpyToHkd = Number(document.getElementById("setRate").value) || 0;
+      const fxCode = (document.getElementById("setFxCurrency").value || "HKD").toUpperCase();
+      let fxRate = Number(document.getElementById("setRate").value) || 0;
+      if (fxCode === "HKD") fxRate = 0;
+      state.trip.fxCurrency = fxCode;
+      state.trip.fxRate = fxRate;
+      state.trip.jpyToHkd = fxRate;
       state.trip.travelMode = normalizeTravelMode(
         document.getElementById("setTravelMode").value,
         false

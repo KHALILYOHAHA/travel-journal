@@ -3,19 +3,19 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-      <link rel="icon" type="image/png" href="favicon-plane.png?v=36" />
+      <link rel="icon" type="image/png" href="favicon-plane.png?v=37" />
   <title>旅行手帳</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Noto+Sans+TC:wght@400;500;700&family=LXGW+WenKai+TC&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=36" />
+  <link rel="stylesheet" href="styles.css?v=37" />
 </head>
 <body>
   <div id="app">
     <!-- Top nav -->
     <header class="topbar">
       <div class="brand">
-        <img class="brand-icon" src="brand-plane.png?v=36" width="32" height="32" alt="" />
+        <img class="brand-icon" src="brand-plane.png?v=37" width="32" height="32" alt="" />
         <span class="brand-title">旅行手帳</span>
       </div>
       <nav class="tabs" role="tablist">
@@ -274,9 +274,19 @@
             <label>旅伴（逗號分隔）
               <input type="text" id="setCompanions" placeholder="Khalil、旅伴二、旅伴三、旅伴四" />
             </label>
-            <label>外幣 → HKD（1 外幣約幾多港紙；日本可填円匯率，唔使就填 0）
-              <input type="number" id="setRate" min="0" step="any" required />
-            </label>
+            <div class="fx-block">
+              <label>當地貨幣
+                <select id="setFxCurrency"></select>
+              </label>
+              <label>1 外幣 ≈ HKD
+                <input type="number" id="setRate" min="0" step="any" required />
+              </label>
+              <div class="fx-actions">
+                <button type="button" class="btn btn-add sm" id="btnFetchHkabwe">從 HKAB 更新牌價</button>
+                <span class="fx-meta" id="fxMeta"></span>
+              </div>
+              <p class="field-hint">參考<a href="https://www.hkab.org.hk/tc/rates/exchange-rates" target="_blank" rel="noopener">香港銀行公會（HKAB）開市賣出價</a>。多數貨幣以每佰外幣計（英鎊除外）；只供參考，唔係實時成交價。可手動改匯率。</p>
+            </div>
             <label>Google 地圖交通方式
               <select id="setTravelMode">
                 <option value="driving">自駕</option>
@@ -394,8 +404,8 @@
           <label>金額（HKD）
             <input type="number" id="expHkd" min="0" step="0.01" required />
           </label>
-          <label>當地貨幣金額（可選）
-            <input type="number" id="expJpy" min="0" step="1" />
+          <label id="expLocalWrap"><span id="expLocalLabel">當地貨幣金額（可選）</span>
+            <input type="number" id="expJpy" min="0" step="any" />
           </label>
         </div>
         <div class="form-row">
@@ -522,6 +532,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=36"></script>
+  <script src="app.js?v=37"></script>
 </body>
 </html>
