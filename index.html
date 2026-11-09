@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Noto+Sans+TC:wght@400;500;700&family=LXGW+WenKai+TC&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=16" />
+  <link rel="stylesheet" href="styles.css?v=17" />
 </head>
 <body>
   <div id="app">
@@ -94,9 +94,15 @@
             </div>
 
             <div class="expense-card rough-card">
-              <div class="expense-main">
-                <div class="expense-big" id="calSpentHkd">HKD $0</div>
-                <div class="expense-jpy" id="calSpentJpy">約 ¥0</div>
+              <div class="expense-head">
+                <div class="expense-main">
+                  <div class="expense-big" id="calSpentHkd">HKD $0</div>
+                  <div class="expense-jpy" id="calSpentJpy">約 ¥0</div>
+                </div>
+                <div class="expense-actions">
+                  <button type="button" class="btn btn-ghost sm" id="btnScan">掃描</button>
+                  <button type="button" class="btn btn-ghost sm" id="btnAddExpense">＋ 記一筆</button>
+                </div>
               </div>
               <div class="budget-row">
                 <div class="progress-wrap">
@@ -108,17 +114,6 @@
                 <span>預算 <strong id="calBudget">未設定</strong></span>
                 <span>今日 <strong id="calTodaySpend">HKD $0</strong></span>
               </div>
-            </div>
-
-            <div class="action-row">
-              <button type="button" class="btn btn-scan" id="btnScan">
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M8 5l1.5-2h5L16 5"/></svg>
-                掃描收據
-              </button>
-              <button type="button" class="btn btn-add" id="btnAddExpense">
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-                記一筆
-              </button>
             </div>
 
             <div class="todo-card rough-card grid-paper">
@@ -379,6 +374,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=16"></script>
+  <script src="app.js?v=17"></script>
 </body>
 </html>
