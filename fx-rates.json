@@ -1,0 +1,31 @@
+{
+  "source": "https://hk.finance.yahoo.com",
+  "quote": "Yahoo Finance FX, 1 foreign → HKD (regularMarketPrice)",
+  "rateDate": "2026-11-09",
+  "updatedAt": "2026-11-09T09:08:14Z",
+  "fetchedAt": "2026-11-09T09:08:18.588146Z",
+  "rates": {
+    "JPY": 0.0494,
+    "USD": 7.8415,
+    "EUR": 8.7741,
+    "GBP": 10.511,
+    "CNY": 1.1747,
+    "CNH": 1.1749,
+    "NTD": 0.2382,
+    "WON": 0.0058,
+    "THB": 0.2302,
+    "SGD": 6.1241,
+    "AUD": 5.3845,
+    "CAD": 5.5658,
+    "CHF": 9.5815,
+    "MYR": 1.9311,
+    "NZD": 4.3903,
+    "PHP": 0.1238,
+    "INR": 0.0832,
+    "DKK": 1.1711,
+    "NOK": 0.832,
+    "SEK": 0.7941,
+    "ZAR": 0.4628,
+    "PKR": 0.0279
+  }
+}

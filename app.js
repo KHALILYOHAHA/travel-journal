@@ -26,29 +26,35 @@
     其他: "#9a9a9a",
   };
 
-  /** HKAB-backed FX options. Most Selling quotes are per 100 FC → HKD; GBP is per 1. */
-  const HKAB_RATES_URL = "https://www.hkab.org.hk/tc/rates/exchange-rates";
+  /** Yahoo Finance FX — quotes are already 1 foreign unit → HKD */
+  const YAHOO_SPARK_URL = "https://query1.finance.yahoo.com/v7/finance/spark";
+  const YAHOO_CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart/";
   const FX_OPTIONS = [
-    { code: "HKD", label: "港幣／唔用外幣", symbol: "$", perHundred: false, none: true },
-    { code: "JPY", label: "日元 (JPY)", symbol: "¥", perHundred: true },
-    { code: "USD", label: "美元 (USD)", symbol: "US$", perHundred: true },
-    { code: "EUR", label: "歐羅 (EUR)", symbol: "€", perHundred: true },
-    { code: "GBP", label: "英鎊 (GBP)", symbol: "£", perHundred: false },
-    { code: "CNY", label: "人民幣在岸 (CNY)", symbol: "¥", perHundred: true },
-    { code: "CNH", label: "人民幣離岸 (CNH)", symbol: "¥", perHundred: true },
-    { code: "NTD", label: "新台幣 (NTD)", symbol: "NT$", perHundred: true },
-    { code: "WON", label: "韓圜 (WON)", symbol: "₩", perHundred: true },
-    { code: "THB", label: "泰銖 (THB)", symbol: "฿", perHundred: true },
-    { code: "SGD", label: "新加坡元 (SGD)", symbol: "S$", perHundred: true },
-    { code: "AUD", label: "澳元 (AUD)", symbol: "A$", perHundred: true },
-    { code: "CAD", label: "加元 (CAD)", symbol: "C$", perHundred: true },
-    { code: "CHF", label: "瑞士法郎 (CHF)", symbol: "CHF", perHundred: true },
-    { code: "MYR", label: "馬幣 (MYR)", symbol: "RM", perHundred: true },
-    { code: "NZD", label: "紐西蘭元 (NZD)", symbol: "NZ$", perHundred: true },
-    { code: "PHP", label: "菲律賓披索 (PHP)", symbol: "₱", perHundred: true },
-    { code: "INR", label: "印度盧比 (INR)", symbol: "₹", perHundred: true },
+    { code: "HKD", label: "港幣／唔用外幣", symbol: "$", none: true },
+    { code: "JPY", label: "日元 (JPY)", symbol: "¥", yahoo: "JPYHKD=X" },
+    { code: "USD", label: "美元 (USD)", symbol: "US$", yahoo: "USDHKD=X" },
+    { code: "EUR", label: "歐羅 (EUR)", symbol: "€", yahoo: "EURHKD=X" },
+    { code: "GBP", label: "英鎊 (GBP)", symbol: "£", yahoo: "GBPHKD=X" },
+    { code: "CNY", label: "人民幣在岸 (CNY)", symbol: "¥", yahoo: "CNYHKD=X" },
+    { code: "CNH", label: "人民幣離岸 (CNH)", symbol: "¥", yahoo: "CNHHKD=X" },
+    { code: "NTD", label: "新台幣 (NTD)", symbol: "NT$", yahoo: "TWDHKD=X" },
+    { code: "WON", label: "韓圜 (WON)", symbol: "₩", yahoo: "KRWHKD=X" },
+    { code: "THB", label: "泰銖 (THB)", symbol: "฿", yahoo: "THBHKD=X" },
+    { code: "SGD", label: "新加坡元 (SGD)", symbol: "S$", yahoo: "SGDHKD=X" },
+    { code: "AUD", label: "澳元 (AUD)", symbol: "A$", yahoo: "AUDHKD=X" },
+    { code: "CAD", label: "加元 (CAD)", symbol: "C$", yahoo: "CADHKD=X" },
+    { code: "CHF", label: "瑞士法郎 (CHF)", symbol: "CHF", yahoo: "CHFHKD=X" },
+    { code: "MYR", label: "馬幣 (MYR)", symbol: "RM", yahoo: "MYRHKD=X" },
+    { code: "NZD", label: "紐西蘭元 (NZD)", symbol: "NZ$", yahoo: "NZDHKD=X" },
+    { code: "PHP", label: "菲律賓披索 (PHP)", symbol: "₱", yahoo: "PHPHKD=X" },
+    { code: "INR", label: "印度盧比 (INR)", symbol: "₹", yahoo: "INRHKD=X" },
+    { code: "DKK", label: "丹麥克朗 (DKK)", symbol: "kr", yahoo: "DKKHKD=X" },
+    { code: "NOK", label: "挪威克朗 (NOK)", symbol: "kr", yahoo: "NOKHKD=X" },
+    { code: "SEK", label: "瑞典克朗 (SEK)", symbol: "kr", yahoo: "SEKHKD=X" },
+    { code: "ZAR", label: "南非蘭特 (ZAR)", symbol: "R", yahoo: "ZARHKD=X" },
+    { code: "PKR", label: "巴基斯坦盧比 (PKR)", symbol: "Rs", yahoo: "PKRHKD=X" },
   ];
-  let hkabweCache = null; // { rates:{CODE: per1}, rateDate, updatedAt, fetchedAt }
+  let yahooFxCache = null; // { rates, rateDate, updatedAt, fetchedAt, source }
 
 
   /** Demo "today" fixed to Day 1 of the trip so the prototype always looks alive */
@@ -229,88 +235,78 @@
     lab.textContent = opt.label + "金額（可選）";
   }
 
-  function resolveNuxtValue(data, x, depth, seen) {
-    if (depth > 12) return x;
-    if (typeof x === "number" && Number.isInteger(x) && x >= 0 && x < data.length) {
-      if (seen.has(x)) return x;
-      seen.add(x);
-      return resolveNuxtValue(data, data[x], depth + 1, seen);
-    }
-    return x;
+  function yahooSymbolToCode(symbol) {
+    const sym = String(symbol || "");
+    const hit = FX_OPTIONS.find((o) => o.yahoo === sym);
+    return hit ? hit.code : null;
   }
 
-  function parseHkabweRatesFromHtml(html) {
-    const m = String(html).match(/<script[^>]*id="__NUXT_DATA__"[^>]*>([\s\S]*?)<\/script>/i);
-    if (!m) throw new Error("搵唔到 HKAB 匯率資料（__NUXT_DATA__）");
-    let data;
-    try {
-      data = JSON.parse(m[1]);
-    } catch (_) {
-      throw new Error("HKAB 匯率 JSON 解唔開");
-    }
-    if (!Array.isArray(data)) throw new Error("HKAB 匯率格式唔啱");
-
-    let rateObj = null;
-    for (let i = 0; i < data.length; i++) {
-      const v = data[i];
-      if (v && typeof v === "object" && !Array.isArray(v) && "JPYSelling" in v) {
-        rateObj = v;
-        break;
-      }
-    }
-    if (!rateObj) throw new Error("HKAB 頁面未見 Selling 牌價");
-
+  function parseYahooSparkJson(data) {
+    const results = data && data.spark && Array.isArray(data.spark.result) ? data.spark.result : [];
+    if (!results.length) throw new Error("Yahoo spark 冇結果");
     const rates = {};
-    FX_OPTIONS.forEach((opt) => {
-      if (opt.none) return;
-      const key = opt.code + "Selling";
-      if (!(key in rateObj)) return;
-      const raw = resolveNuxtValue(data, rateObj[key], 0, new Set());
-      const num = typeof raw === "number" ? raw : parseFloat(String(raw).replace(/,/g, ""));
-      if (!Number.isFinite(num)) return;
-      rates[opt.code] = opt.perHundred === false ? num : num / 100;
+    let marketTime = null;
+    results.forEach((item) => {
+      const code = yahooSymbolToCode(item && item.symbol);
+      if (!code) return;
+      try {
+        const meta = item.response[0].meta;
+        const price = Number(meta.regularMarketPrice);
+        if (!Number.isFinite(price)) return;
+        rates[code] = price;
+        if (meta.regularMarketTime != null) marketTime = meta.regularMarketTime;
+      } catch (_) {}
     });
-
-    const rateDate = resolveNuxtValue(data, rateObj.RateDate, 0, new Set());
-    const updatedAt = resolveNuxtValue(data, rateObj.updated_at, 0, new Set());
-    return {
-      rates,
-      rateDate: rateDate != null ? String(rateDate) : "",
-      updatedAt: updatedAt != null ? String(updatedAt) : "",
-      fetchedAt: new Date().toISOString(),
-    };
-  }
-
-  function parseHkabweRatesFromMarkdown(md) {
-    // Spot tables only — cut off forward rates section
-    let text = String(md || "");
-    const cut = text.search(/遠期匯價/);
-    if (cut >= 0) text = text.slice(0, cut);
-    const rates = {};
-    const re = /貨幣代號:\s*\n\s*([A-Z]{3})\s*\n[\s\S]*?賣出價:\s*\n\s*([0-9]+(?:\.[0-9]+)?)/g;
-    let m;
-    while ((m = re.exec(text))) {
-      const code = m[1];
-      if (rates[code] != null) continue; // first (spot) wins
-      const num = parseFloat(m[2]);
-      if (!Number.isFinite(num)) continue;
-      const opt = fxOption(code);
-      if (opt.none) continue;
-      rates[code] = opt.perHundred === false ? num : num / 100;
+    if (!Object.keys(rates).length) throw new Error("Yahoo spark 解唔到匯率");
+    let updatedAt = "";
+    let rateDate = "";
+    if (marketTime != null) {
+      let t = Number(marketTime);
+      if (t > 1e12) t = t / 1000;
+      try {
+        const d = new Date(t * 1000);
+        updatedAt = d.toISOString();
+        rateDate = d.toLocaleDateString("en-CA", { timeZone: "Asia/Hong_Kong" });
+      } catch (_) {}
     }
-    if (!Object.keys(rates).length) throw new Error("轉接頁解唔到 HKAB 賣出價");
-    const dateM = String(md || "").match(/以下是\s*\*?\*?([0-9]{4}-[0-9]{2}-[0-9]{2})\*?\*/);
-    const updM = String(md || "").match(/最後更新：\s*([0-9]{4}-[0-9]{2}-[0-9]{2}[^\n]*)/);
     return {
       rates,
-      rateDate: dateM ? dateM[1] : "",
-      updatedAt: updM ? updM[1].trim() : "",
+      rateDate: rateDate || new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Hong_Kong" }),
+      updatedAt: updatedAt || new Date().toISOString(),
       fetchedAt: new Date().toISOString(),
-      source: "jina",
+      source: "yahoo",
     };
   }
 
-  function parseHkabweRatesFromJson(obj) {
+  function parseYahooChartJson(data, code) {
+    const meta =
+      data && data.chart && data.chart.result && data.chart.result[0] && data.chart.result[0].meta;
+    if (!meta) throw new Error("Yahoo chart 格式唔啱");
+    const price = Number(meta.regularMarketPrice);
+    if (!Number.isFinite(price)) throw new Error("Yahoo chart 冇牌價");
+    let updatedAt = "";
+    let rateDate = "";
+    if (meta.regularMarketTime != null) {
+      let t = Number(meta.regularMarketTime);
+      if (t > 1e12) t = t / 1000;
+      try {
+        const d = new Date(t * 1000);
+        updatedAt = d.toISOString();
+        rateDate = d.toLocaleDateString("en-CA", { timeZone: "Asia/Hong_Kong" });
+      } catch (_) {}
+    }
+    const rates = {};
+    rates[code] = price;
+    return {
+      rates,
+      rateDate: rateDate || new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Hong_Kong" }),
+      updatedAt: updatedAt || new Date().toISOString(),
+      fetchedAt: new Date().toISOString(),
+      source: "yahoo",
+    };
+  }
+
+  function parseYahooRatesFromLocalJson(obj) {
     if (!obj || typeof obj !== "object" || !obj.rates) throw new Error("後備牌價檔格式唔啱");
     const rates = {};
     Object.keys(obj.rates).forEach((code) => {
@@ -327,46 +323,87 @@
     };
   }
 
-  async function fetchText(url, accept) {
+  async function fetchJson(url) {
     const res = await fetch(url, {
       method: "GET",
-      headers: { Accept: accept || "*/*" },
+      headers: { Accept: "application/json" },
       cache: "no-store",
       mode: "cors",
     });
     if (!res.ok) throw new Error("HTTP " + res.status);
-    return res.text();
+    return res.json();
   }
 
-  async function fetchHkabweRates() {
+  function chunk(arr, size) {
+    const out = [];
+    for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+    return out;
+  }
+
+  async function fetchYahooSparkAll() {
+    const symbols = FX_OPTIONS.filter((o) => o.yahoo).map((o) => o.yahoo);
+    // Yahoo spark rejects very long symbol lists — batch
+    const batches = chunk(symbols, 8);
+    const merged = { rates: {}, rateDate: "", updatedAt: "", fetchedAt: new Date().toISOString(), source: "yahoo" };
+    for (let i = 0; i < batches.length; i++) {
+      const qs =
+        "symbols=" +
+        encodeURIComponent(batches[i].join(",")) +
+        "&range=1d&interval=1d";
+      const data = await fetchJson(YAHOO_SPARK_URL + "?" + qs);
+      const part = parseYahooSparkJson(data);
+      Object.assign(merged.rates, part.rates);
+      if (part.rateDate) merged.rateDate = part.rateDate;
+      if (part.updatedAt) merged.updatedAt = part.updatedAt;
+    }
+    if (!Object.keys(merged.rates).length) throw new Error("Yahoo spark 冇匯率");
+    if (!merged.rateDate) {
+      merged.rateDate = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Hong_Kong" });
+    }
+    return merged;
+  }
+
+  async function fetchYahooChartOne(code) {
+    const opt = fxOption(code);
+    if (!opt.yahoo) throw new Error(code + " 冇 Yahoo 代碼");
+    const data = await fetchJson(YAHOO_CHART_URL + encodeURIComponent(opt.yahoo) + "?interval=1d&range=1d");
+    return parseYahooChartJson(data, code);
+  }
+
+  async function fetchYahooRates(preferredCode) {
     const errors = [];
 
-    // 1) Live via jina reader (HKAB itself blocks browser CORS)
+    // 1) Direct Yahoo spark (batched)
     try {
-      const md = await fetchText("https://r.jina.ai/" + HKAB_RATES_URL, "text/plain");
-      const parsed = parseHkabweRatesFromMarkdown(md);
-      hkabweCache = parsed;
+      const parsed = await fetchYahooSparkAll();
+      yahooFxCache = parsed;
       return parsed;
     } catch (err) {
-      errors.push("轉接：" + ((err && err.message) || err));
+      errors.push("spark：" + ((err && err.message) || err));
     }
 
-    // 2) Direct HKAB HTML (works only if CORS ever opens)
-    try {
-      const html = await fetchText(HKAB_RATES_URL, "text/html");
-      const parsed = parseHkabweRatesFromHtml(html);
-      parsed.source = "hkab";
-      hkabweCache = parsed;
-      return parsed;
-    } catch (err) {
-      errors.push("直連：" + ((err && err.message) || err));
+    // 2) Direct Yahoo chart for selected currency (then merge into cache)
+    if (preferredCode && preferredCode !== "HKD") {
+      try {
+        const one = await fetchYahooChartOne(preferredCode);
+        yahooFxCache = Object.assign({}, yahooFxCache || {}, {
+          rates: Object.assign({}, (yahooFxCache && yahooFxCache.rates) || {}, one.rates),
+          rateDate: one.rateDate,
+          updatedAt: one.updatedAt,
+          fetchedAt: one.fetchedAt,
+          source: "yahoo",
+        });
+        return yahooFxCache;
+      } catch (err) {
+        errors.push("chart：" + ((err && err.message) || err));
+      }
     }
 
-    // 3) Same-origin fallback file shipped with the app
+    // 3) Same-origin fallback
     try {
-      const raw = await fetchText("hkab-rates.json?v=38", "application/json");
-      const parsed = parseHkabweRatesFromJson(JSON.parse(raw));
-      hkabweCache = parsed;
+      const raw = await fetchJson("fx-rates.json?v=39");
+      const parsed = parseYahooRatesFromLocalJson(raw);
+      yahooFxCache = parsed;
       return parsed;
     } catch (err) {
       errors.push("後備：" + ((err && err.message) || err));
@@ -380,7 +417,6 @@
     const curEl = document.getElementById("setFxCurrency");
     if (curEl && code) curEl.value = code;
     if (rateEl && rate != null && Number.isFinite(Number(rate))) {
-      // keep readable precision
       const n = Number(rate);
       rateEl.value = n === 0 ? "0" : String(Math.round(n * 1e8) / 1e8);
     }
@@ -394,16 +430,28 @@
       rateDate: state.trip.fxSourceDate,
       updatedAt: state.trip.fxSourceUpdatedAt,
       fetchedAt: state.trip.fxFetchedAt,
+      source: state.trip.fxSource,
     };
     const parts = [];
     if (m && m.rateDate) parts.push("牌價日 " + m.rateDate);
-    if (m && m.updatedAt) parts.push("更新 " + m.updatedAt);
-    else if (m && m.fetchedAt) {
+    if (m && m.updatedAt) {
+      try {
+        const d = new Date(m.updatedAt);
+        parts.push(
+          Number.isNaN(d.getTime())
+            ? "更新 " + m.updatedAt
+            : "更新 " + d.toLocaleString("zh-HK", { hour12: false })
+        );
+      } catch (_) {
+        parts.push("更新 " + m.updatedAt);
+      }
+    } else if (m && m.fetchedAt) {
       try {
         parts.push("抓取 " + new Date(m.fetchedAt).toLocaleString("zh-HK", { hour12: false }));
       } catch (_) {}
     }
-    el.textContent = parts.length ? "HKAB：" + parts.join(" · ") : "";
+    const prefix = m && m.source === "local" ? "本機後備：" : "Yahoo：";
+    el.textContent = parts.length ? prefix + parts.join(" · ") : "";
   }
 
   function fillFxCurrencySelect() {
@@ -2814,8 +2862,8 @@
           updateFxMeta();
           return;
         }
-        if (hkabweCache && hkabweCache.rates && hkabweCache.rates[code] != null) {
-          applyFxRateToForm(code, hkabweCache.rates[code], hkabweCache);
+        if (yahooFxCache && yahooFxCache.rates && yahooFxCache.rates[code] != null) {
+          applyFxRateToForm(code, yahooFxCache.rates[code], yahooFxCache);
           return;
         }
         // keep current rate unless empty
@@ -2825,7 +2873,7 @@
       });
     }
 
-    const btnFx = document.getElementById("btnFetchHkabwe");
+    const btnFx = document.getElementById("btnFetchYahoo");
     if (btnFx) {
       btnFx.addEventListener("click", async () => {
         const code = (document.getElementById("setFxCurrency").value || "JPY").toUpperCase();
@@ -2837,10 +2885,10 @@
         const prev = btnFx.textContent;
         btnFx.textContent = "更新中…";
         try {
-          const snap = await fetchHkabweRates();
+          const snap = await fetchYahooRates(code);
           const rate = snap.rates[code];
           if (rate == null || !Number.isFinite(rate)) {
-            throw new Error("未有 " + code + " 賣出價");
+            throw new Error("未有 " + code + " 牌價");
           }
           applyFxRateToForm(code, rate, snap);
           state.trip.fxCurrency = code;
@@ -2849,18 +2897,14 @@
           state.trip.fxSourceDate = snap.rateDate || "";
           state.trip.fxSourceUpdatedAt = snap.updatedAt || "";
           state.trip.fxFetchedAt = snap.fetchedAt || new Date().toISOString();
+          state.trip.fxSource = snap.source || "yahoo";
           save();
           renderAll();
-          const via =
-            snap.source === "local"
-              ? "本機後備"
-              : snap.source === "jina"
-                ? "HKAB 轉接"
-                : "HKAB";
+          const via = snap.source === "local" ? "本機後備" : "Yahoo";
           toast(
             "已更新 " +
               code +
-              " 賣出價" +
+              " 牌價" +
               (snap.rateDate ? "（" + snap.rateDate + "）" : "") +
               " · " +
               via +
@@ -2868,7 +2912,7 @@
           );
         } catch (err) {
           console.error(err);
-          toast((err && err.message) || "更新 HKAB 牌價失敗");
+          toast((err && err.message) || "更新 Yahoo 牌價失敗");
         } finally {
           btnFx.disabled = false;
           btnFx.textContent = prev;

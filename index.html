@@ -3,19 +3,19 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-      <link rel="icon" type="image/png" href="favicon-plane.png?v=38" />
+      <link rel="icon" type="image/png" href="favicon-plane.png?v=39" />
   <title>旅行手帳</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Noto+Sans+TC:wght@400;500;700&family=LXGW+WenKai+TC&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=38" />
+  <link rel="stylesheet" href="styles.css?v=39" />
 </head>
 <body>
   <div id="app">
     <!-- Top nav -->
     <header class="topbar">
       <div class="brand">
-        <img class="brand-icon" src="brand-plane.png?v=38" width="32" height="32" alt="" />
+        <img class="brand-icon" src="brand-plane.png?v=39" width="32" height="32" alt="" />
         <span class="brand-title">旅行手帳</span>
       </div>
       <nav class="tabs" role="tablist">
@@ -282,10 +282,10 @@
                 <input type="number" id="setRate" min="0" step="any" required />
               </label>
               <div class="fx-actions">
-                <button type="button" class="btn btn-add sm" id="btnFetchHkabwe">從 HKAB 更新牌價</button>
+                <button type="button" class="btn btn-add sm" id="btnFetchYahoo">從 Yahoo 更新牌價</button>
                 <span class="fx-meta" id="fxMeta"></span>
               </div>
-              <p class="field-hint">參考<a href="https://www.hkab.org.hk/tc/rates/exchange-rates" target="_blank" rel="noopener">香港銀行公會（HKAB）開市賣出價</a>。多數貨幣以每佰外幣計（英鎊除外）；只供參考，唔係實時成交價。可手動改匯率。若直連失敗會自動用轉接／本機後備牌價。</p>
+              <p class="field-hint">參考<a href="https://hk.finance.yahoo.com/" target="_blank" rel="noopener">Yahoo Finance 外匯</a>報價（1 外幣≈HKD）。市場價只供參考；直連若被瀏覽器擋住會用本機後備牌價。可手動改。</p>
             </div>
             <label>Google 地圖交通方式
               <select id="setTravelMode">
@@ -532,6 +532,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=38"></script>
+  <script src="app.js?v=39"></script>
 </body>
 </html>
