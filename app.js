@@ -332,13 +332,16 @@
             : `<div class="hint-line">${escapeHtml(title)}</div>`;
           const routePts = stops.map(stopRouteQuery).filter(Boolean);
           const mq = dayMapsQuery(d);
+          const overviewMode = resolveTravelMode(stops[0] && stops[0].toNextMode);
           const mapHref =
-            routePts.length >= 2 ? mapsMultiDirectionsUrl(routePts) : mapsUrl(mq);
+            routePts.length >= 2
+              ? mapsMultiDirectionsUrl(routePts, overviewMode)
+              : mapsUrl(mq);
           const anyOn = stops.some((s) => stopShowsMap(s));
           const embed = !anyOn
             ? ""
             : routePts.length >= 2
-            ? mapsMultiDirectionsEmbedUrl(routePts)
+            ? mapsMultiDirectionsEmbedUrl(routePts, overviewMode)
             : mapsEmbedUrl(mq);
           const mapBtn = mapHref
             ? `<a class="todo-icon-btn next-map" href="${escapeHtml(mapHref)}" target="_blank" rel="noopener" data-itin-map aria-label="開 Google 地圖" title="地圖">🗺</a>`
