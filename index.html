@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Noto+Sans+TC:wght@400;500;700&family=LXGW+WenKai+TC&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=13" />
+  <link rel="stylesheet" href="styles.css?v=14" />
 </head>
 <body>
   <div id="app">
@@ -259,6 +259,15 @@
             <label>匯率 JPY → HKD（1 円約幾多港紙）
               <input type="number" id="setRate" min="0" step="any" required />
             </label>
+            <label>Google 地圖交通方式
+              <select id="setTravelMode">
+                <option value="driving">自駕</option>
+                <option value="transit">公共交通</option>
+                <option value="walking">步行</option>
+                <option value="bicycling">單車</option>
+              </select>
+            </label>
+            <p class="field-hint">東京 ↔ 河口湖自駕就揀「自駕」；路線圖同「導航／開路線」都會跟呢個設定。</p>
             <div class="form-actions">
               <button type="submit" class="btn btn-scan">儲存設定</button>
               <button type="button" class="btn btn-ghost" id="btnResetDemo">重設示範資料</button>
@@ -374,6 +383,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=13"></script>
+  <script src="app.js?v=14"></script>
 </body>
 </html>

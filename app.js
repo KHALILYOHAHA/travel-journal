@@ -28,6 +28,7 @@
         budget: 0,
         companions: ["Khalil", "旅伴二", "旅伴三", "旅伴四"],
         jpyToHkd: 0.0523,
+        travelMode: "driving",
       },
       cities: {
         "2026-12-15": "東京",
@@ -97,6 +98,8 @@
   let state = load();
   normalizeItinerary(state);
   if (typeof state.showMaps !== "boolean") state.showMaps = true;
+  if (!state.trip) state.trip = {};
+  if (!state.trip.travelMode) state.trip.travelMode = "driving";
 
   function uid(prefix) {
     return prefix + "_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -553,6 +556,8 @@
     document.getElementById("setBudget").value = state.trip.budget;
     document.getElementById("setCompanions").value = (state.trip.companions || []).join("、");
     document.getElementById("setRate").value = state.trip.jpyToHkd;
+    const modeEl = document.getElementById("setTravelMode");
+    if (modeEl) modeEl.value = state.trip.travelMode || "driving";
   }
 
   // ---------- Modal ----------
@@ -781,6 +786,16 @@
     return place || "";
   }
 
+  function travelMode() {
+    const m = (state.trip && state.trip.travelMode) || "driving";
+    if (["driving", "transit", "walking", "bicycling"].includes(m)) return m;
+    return "driving";
+  }
+
+  function travelModeDirflg() {
+    return { driving: "d", transit: "r", walking: "w", bicycling: "b" }[travelMode()] || "d";
+  }
+
   function mapsDirectionsEmbedUrl(from, to) {
     const a = String(from || "").trim();
     const b = String(to || "").trim();
@@ -790,6 +805,8 @@
       encodeURIComponent(a) +
       "&daddr=" +
       encodeURIComponent(b) +
+      "&dirflg=" +
+      travelModeDirflg() +
       "&hl=zh-TW&output=embed"
     );
   }
@@ -802,7 +819,9 @@
       "https://www.google.com/maps/dir/?api=1&origin=" +
       encodeURIComponent(a) +
       "&destination=" +
-      encodeURIComponent(b)
+      encodeURIComponent(b) +
+      "&travelmode=" +
+      encodeURIComponent(travelMode())
     );
   }
 
@@ -817,7 +836,15 @@
         .slice(2)
         .map((p) => "+to:" + encodeURIComponent(p))
         .join("");
-    return "https://maps.google.com/maps?saddr=" + saddr + "&daddr=" + daddr + "&hl=zh-TW&output=embed";
+    return (
+      "https://maps.google.com/maps?saddr=" +
+      saddr +
+      "&daddr=" +
+      daddr +
+      "&dirflg=" +
+      travelModeDirflg() +
+      "&hl=zh-TW&output=embed"
+    );
   }
 
   function mapsMultiDirectionsUrl(places) {
@@ -831,6 +858,7 @@
       encodeURIComponent(pts[pts.length - 1]);
     const mid = pts.slice(1, -1);
     if (mid.length) url += "&waypoints=" + encodeURIComponent(mid.join("|"));
+    url += "&travelmode=" + encodeURIComponent(travelMode());
     return url;
   }
 
@@ -1241,6 +1269,10 @@
       state.trip.end = document.getElementById("setEnd").value;
       state.trip.budget = Number(document.getElementById("setBudget").value) || 0;
       state.trip.jpyToHkd = Number(document.getElementById("setRate").value) || 0.052;
+      const mode = document.getElementById("setTravelMode").value || "driving";
+      state.trip.travelMode = ["driving", "transit", "walking", "bicycling"].includes(mode)
+        ? mode
+        : "driving";
       const comps = document
         .getElementById("setCompanions")
         .value.split(/[,、，]/)
