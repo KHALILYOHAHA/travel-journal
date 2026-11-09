@@ -224,7 +224,8 @@
 
     const city = state.cities[today] || "";
     document.getElementById("calTodoSub").textContent = `Day ${dayN} · ${city}`;
-    document.getElementById("pageNum").textContent = String(dayN);
+    const pageNumEl = document.getElementById("pageNum");
+    if (pageNumEl) pageNumEl.textContent = String(dayN);
 
     // Todos
     const todos = state.todos.filter((t) => t.date === today);
@@ -288,7 +289,7 @@
     renderDayStops(today);
     const jl = document.getElementById("calJournalList");
     if (!dayExps.length) {
-      jl.innerHTML = `<li><span class="muted">尚未記帳</span></li>`;
+      jl.innerHTML = "";
     } else {
       jl.innerHTML = dayExps
         .map(

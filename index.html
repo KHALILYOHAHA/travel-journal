@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Noto+Sans+TC:wght@400;500;700&family=LXGW+WenKai+TC&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=15" />
+  <link rel="stylesheet" href="styles.css?v=16" />
 </head>
 <body>
   <div id="app">
@@ -144,6 +144,22 @@
               <div class="cal-grid" id="calGrid"></div>
             </div>
 
+            <div class="day-itin-card rough-card">
+              <div class="day-itin-head">
+                <h3 class="section-h">當日行程</h3>
+                <div class="day-itin-actions">
+                  <button type="button" class="btn btn-ghost sm" id="btnToggleMaps" aria-pressed="true" title="一次過顯示／隱藏今日所有地圖">全部隱藏地圖</button>
+                  <button type="button" class="btn btn-ghost sm" id="btnAddStop">＋ 加地點</button>
+                </div>
+              </div>
+              <div class="day-stops" id="dayStopsList"></div>
+            </div>
+
+            <div class="next-card rough-card">
+              <h3 class="section-h">接下來三日行程</h3>
+              <div class="next-list" id="calNextDays"></div>
+            </div>
+
             <div class="journal-card rough-card">
               <div class="journal-head">
                 <h3 class="section-h">今日手札</h3>
@@ -162,26 +178,6 @@
               <ul class="journal-list" id="calJournalList"></ul>
             </div>
 
-            <div class="day-itin-card rough-card">
-              <div class="day-itin-head">
-                <h3 class="section-h">當日行程</h3>
-                <div class="day-itin-actions">
-                  <button type="button" class="btn btn-ghost sm" id="btnToggleMaps" aria-pressed="true" title="一次過顯示／隱藏今日所有地圖">全部隱藏地圖</button>
-                  <button type="button" class="btn btn-ghost sm" id="btnAddStop">＋ 加地點</button>
-                </div>
-              </div>
-              <div class="day-stops" id="dayStopsList"></div>
-            </div>
-
-            <div class="next-card rough-card">
-              <h3 class="section-h">接下來三日行程</h3>
-              <div class="next-list" id="calNextDays"></div>
-            </div>
-
-            <footer class="page-foot">
-              <span class="foot-note">手繪旅行手帳 · 第 <span id="pageNum">1</span> 頁</span>
-              <span class="stamp">一路順風</span>
-            </footer>
           </article>
         </div>
       </section>
@@ -383,6 +379,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=15"></script>
+  <script src="app.js?v=16"></script>
 </body>
 </html>
