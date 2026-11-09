@@ -604,8 +604,27 @@
   }
 
   /** Who shares this expense; empty/missing → all companions */
+  function isPersonalExpense(e) {
+    if (!e) return false;
+    if (e.split === false) return true;
+    if (e.split === true) return false;
+    // Legacy: only payer in splitWith → treat as personal
+    if (
+      Array.isArray(e.splitWith) &&
+      e.splitWith.length === 1 &&
+      e.payer &&
+      e.splitWith[0] === e.payer
+    ) {
+      return true;
+    }
+    return false;
+  }
+
   function expenseSplitWith(e) {
     const all = (state.trip.companions || []).slice();
+    if (isPersonalExpense(e)) {
+      return e.payer ? [e.payer] : [];
+    }
     if (Array.isArray(e.splitWith) && e.splitWith.length) return e.splitWith.slice();
     return all;
   }
@@ -1035,11 +1054,22 @@
     }
     el.innerHTML = list
       .map((e) => {
+        const personal = isPersonalExpense(e);
         const split = expenseSplitWith(e);
-        const splitNote =
-          split.length && split.length < (state.trip.companions || []).length
-            ? ` · 夾：${escapeHtml(split.join("、"))}`
-            : "";
+        let splitNote;
+        if (personal) {
+          splitNote = ` <span class="split-pill private">私人</span>`;
+        } else if (split.length) {
+          const n = split.length;
+          const allN = (state.trip.companions || []).length;
+          const detail =
+            n < allN || (allN > 0 && n !== allN)
+              ? ` · ${escapeHtml(split.join("、"))}`
+              : "";
+          splitNote = ` <span class="split-pill shared">${n} 人夾</span>${detail}`;
+        } else {
+          splitNote = "";
+        }
         return `
       <div class="ledger-item" data-id="${e.id}">
         <div>
@@ -1242,6 +1272,23 @@
   }
 
   // ---------- Modal ----------
+  function updateSplitCount() {
+    const countEl = document.getElementById("expSplitCount");
+    if (!countEl) return;
+    const n = document.querySelectorAll('input[name="expSplitWith"]:checked').length;
+    countEl.textContent = `已揀 ${n} 人`;
+  }
+
+  function syncSplitModeUI() {
+    const yes = document.getElementById("expSplitYes");
+    const wantSplit = yes ? yes.checked : true;
+    const panel = document.getElementById("expSplitPanel");
+    const hint = document.getElementById("expSplitPrivateHint");
+    if (panel) panel.hidden = !wantSplit;
+    if (hint) hint.hidden = wantSplit;
+    updateSplitCount();
+  }
+
   function openExpenseModal(expense) {
     const modal = document.getElementById("modal");
     const companions = state.trip.companions || [];
@@ -1260,8 +1307,16 @@
     document.getElementById("expPayer").value = expense ? expense.payer : companions[0] || "";
     document.getElementById("expNote").value = expense ? expense.note || "" : "";
 
+    const personal = expense ? isPersonalExpense(expense) : false;
+    const yesRadio = document.getElementById("expSplitYes");
+    const noRadio = document.getElementById("expSplitNo");
+    if (yesRadio && noRadio) {
+      yesRadio.checked = !personal;
+      noRadio.checked = personal;
+    }
+
     const checked = new Set(
-      expense && Array.isArray(expense.splitWith) && expense.splitWith.length
+      expense && !personal && Array.isArray(expense.splitWith) && expense.splitWith.length
         ? expense.splitWith
         : companions
     );
@@ -1284,6 +1339,7 @@
       }
     }
 
+    syncSplitModeUI();
     modal.hidden = false;
     document.getElementById("expTitle").focus();
   }
@@ -1909,11 +1965,24 @@
     document.getElementById("expenseForm").addEventListener("submit", (e) => {
       e.preventDefault();
       const id = document.getElementById("expId").value;
-      const splitChecked = [...document.querySelectorAll('input[name="expSplitWith"]:checked')].map(
-        (el) => el.value
-      );
-      const allCompanions = state.trip.companions || [];
-      const splitWith = splitChecked.length ? splitChecked : allCompanions.slice();
+      const payer = document.getElementById("expPayer").value;
+      const wantSplit = document.getElementById("expSplitYes")
+        ? document.getElementById("expSplitYes").checked
+        : true;
+      let split = !!wantSplit;
+      let splitWith;
+      if (!split) {
+        splitWith = payer ? [payer] : [];
+      } else {
+        const splitChecked = [...document.querySelectorAll('input[name="expSplitWith"]:checked')].map(
+          (el) => el.value
+        );
+        if (!splitChecked.length) {
+          toast("要攤分嘅話至少剔 1 個人啦");
+          return;
+        }
+        splitWith = splitChecked;
+      }
       const entry = {
         id: id || uid("e"),
         date: document.getElementById("expDate").value,
@@ -1923,7 +1992,8 @@
           ? Number(document.getElementById("expJpy").value)
           : null,
         cat: document.getElementById("expCat").value,
-        payer: document.getElementById("expPayer").value,
+        payer,
+        split,
         splitWith,
         note: document.getElementById("expNote").value.trim(),
       };
@@ -1939,6 +2009,11 @@
       closeModal();
       toast(id ? "已更新開支 ✓" : "已記一筆 ✓");
       renderAll();
+    });
+
+    document.getElementById("expenseForm").addEventListener("change", (e) => {
+      if (e.target && e.target.name === "expSplitMode") syncSplitModeUI();
+      if (e.target && e.target.name === "expSplitWith") updateSplitCount();
     });
 
     // Auto-fill JPY when HKD changes

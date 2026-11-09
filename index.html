@@ -3,19 +3,19 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-      <link rel="icon" type="image/png" href="favicon-plane.png?v=33" />
+      <link rel="icon" type="image/png" href="favicon-plane.png?v=34" />
   <title>旅行手帳 · 東京 · 富士山</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Noto+Sans+TC:wght@400;500;700&family=LXGW+WenKai+TC&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=33" />
+  <link rel="stylesheet" href="styles.css?v=34" />
 </head>
 <body>
   <div id="app">
     <!-- Top nav -->
     <header class="topbar">
       <div class="brand">
-        <img class="brand-icon" src="brand-plane.png?v=33" width="32" height="32" alt="" />
+        <img class="brand-icon" src="brand-plane.png?v=34" width="32" height="32" alt="" />
         <span class="brand-title">旅行手帳</span>
       </div>
       <nav class="tabs" role="tablist">
@@ -370,9 +370,26 @@
           </label>
         </div>
         <fieldset class="split-field">
-          <legend>邊個夾</legend>
-          <div id="expSplit" class="split-checks"></div>
-          <p class="field-hint">預設全隊夾；可以剔走唔使分攤嘅人</p>
+          <legend>攤分</legend>
+          <div class="split-mode" role="radiogroup" aria-label="洗唔洗攤分">
+            <label class="split-mode-opt">
+              <input type="radio" name="expSplitMode" value="no" id="expSplitNo" />
+              <span>唔攤分（私人）</span>
+            </label>
+            <label class="split-mode-opt">
+              <input type="radio" name="expSplitMode" value="yes" id="expSplitYes" checked />
+              <span>要攤分</span>
+            </label>
+          </div>
+          <p class="field-hint" id="expSplitPrivateHint" hidden>只計喺墊付人身上，唔同人夾</p>
+          <div id="expSplitPanel">
+            <div class="split-panel-head">
+              <span class="split-panel-label">邊個夾</span>
+              <span class="split-count" id="expSplitCount">已揀 0 人</span>
+            </div>
+            <div id="expSplit" class="split-checks"></div>
+            <p class="field-hint">剔要一齊夾嘅人；至少要揀 1 人</p>
+          </div>
         </fieldset>
         <label>備註
           <input type="text" id="expNote" placeholder="可選" />
@@ -461,6 +478,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=33"></script>
+  <script src="app.js?v=34"></script>
 </body>
 </html>

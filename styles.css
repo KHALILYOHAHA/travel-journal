@@ -727,7 +727,7 @@ main { flex: 1; padding: 1.25rem 1rem 2.5rem; }
 .pb-share { background: linear-gradient(90deg, #e07a5f, #e8a06a); }
 .pb-amt { text-align: right; font-weight: 600; color: var(--ink); }
 
-/* Expense modal: 邊個夾 */
+/* Expense modal: 攤分 */
 .split-field {
   border: 1.5px dashed var(--line);
   border-radius: 12px;
@@ -739,6 +739,53 @@ main { flex: 1; padding: 1.25rem 1rem 2.5rem; }
   font-weight: 600;
   padding: 0 0.35rem;
   color: var(--ink);
+}
+.split-mode {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.55rem;
+}
+.split-mode-opt {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.7rem;
+  border: 1.5px solid var(--line);
+  border-radius: 999px;
+  background: var(--cream);
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--ink-soft);
+}
+.split-mode-opt:has(input:checked) {
+  border-color: var(--blue);
+  background: #e8f0fa;
+  color: var(--ink);
+  box-shadow: 0 0 0 2px rgba(107,155,209,.2);
+}
+.split-mode-opt input {
+  accent-color: var(--blue);
+  width: 0.95rem;
+  height: 0.95rem;
+}
+.split-panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+.split-panel-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+.split-count {
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  font-weight: 600;
 }
 .split-checks {
   display: flex;
@@ -757,6 +804,25 @@ main { flex: 1; padding: 1.25rem 1rem 2.5rem; }
   width: 1.05rem;
   height: 1.05rem;
   accent-color: var(--blue);
+}
+.split-pill {
+  display: inline-block;
+  font-size: 0.68rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  margin-left: 0.2rem;
+  font-weight: 600;
+  vertical-align: middle;
+}
+.split-pill.private {
+  background: #f0e8dc;
+  color: #7a6548;
+  border: 1px solid #d8c8b0;
+}
+.split-pill.shared {
+  background: #e0ecf8;
+  color: #3a6a9a;
+  border: 1px solid #b0c8e0;
 }
 
 /* Charts */
