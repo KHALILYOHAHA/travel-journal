@@ -508,7 +508,8 @@
       meta.gistId = DEFAULT_PUBLIC_GIST_ID;
       saveSyncMeta(meta);
     }
-    pullFromCloud({ silent: true, onlyIfNewer: true });
+    // First pull always applies; later opens only if cloud is newer (boot save() would otherwise block).
+    pullFromCloud({ silent: true, onlyIfNewer: !!meta.lastPullAt });
   }
 
   function scheduleAutoSync() {
