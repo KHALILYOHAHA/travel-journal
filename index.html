@@ -3,19 +3,19 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-      <link rel="icon" type="image/png" href="favicon-plane.png?v=35" />
-  <title>旅行手帳 · 東京 · 富士山</title>
+      <link rel="icon" type="image/png" href="favicon-plane.png?v=36" />
+  <title>旅行手帳</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Noto+Sans+TC:wght@400;500;700&family=LXGW+WenKai+TC&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=35" />
+  <link rel="stylesheet" href="styles.css?v=36" />
 </head>
 <body>
   <div id="app">
     <!-- Top nav -->
     <header class="topbar">
       <div class="brand">
-        <img class="brand-icon" src="brand-plane.png?v=35" width="32" height="32" alt="" />
+        <img class="brand-icon" src="brand-plane.png?v=36" width="32" height="32" alt="" />
         <span class="brand-title">旅行手帳</span>
       </div>
       <nav class="tabs" role="tablist">
@@ -66,7 +66,7 @@
               </div>
             </header>
 
-            <div class="map-card rough-card">
+            <div class="map-card rough-card" id="routeSketchCard">
               <svg class="route-map" viewBox="0 0 420 200" xmlns="http://www.w3.org/2000/svg">
                 <!-- paper dots -->
                 <defs>
@@ -274,7 +274,7 @@
             <label>旅伴（逗號分隔）
               <input type="text" id="setCompanions" placeholder="Khalil、旅伴二、旅伴三、旅伴四" />
             </label>
-            <label>匯率 JPY → HKD（1 円約幾多港紙）
+            <label>外幣 → HKD（1 外幣約幾多港紙；日本可填円匯率，唔使就填 0）
               <input type="number" id="setRate" min="0" step="any" required />
             </label>
             <label>Google 地圖交通方式
@@ -353,7 +353,7 @@
       <h3 id="tripModalTitle">新行程</h3>
       <form id="tripForm">
         <label>行程名稱
-          <input type="text" id="newTripTitle" required placeholder="例如：大阪 · 京都" maxlength="40" />
+          <input type="text" id="newTripTitle" required placeholder="例如：首爾 · 釜山／台北 · 花蓮" maxlength="40" />
         </label>
         <div class="form-row">
           <label>出發日
@@ -388,13 +388,13 @@
           <input type="date" id="expDate" required />
         </label>
         <label>項目
-          <input type="text" id="expTitle" required placeholder="例如：成田特快 N'EX" />
+          <input type="text" id="expTitle" required placeholder="例如：機場快線／午餐" />
         </label>
         <div class="form-row">
           <label>金額（HKD）
             <input type="number" id="expHkd" min="0" step="0.01" required />
           </label>
-          <label>金額（JPY，可選）
+          <label>當地貨幣金額（可選）
             <input type="number" id="expJpy" min="0" step="1" />
           </label>
         </div>
@@ -457,10 +457,10 @@
           <input type="date" id="todoDate" required />
         </label>
         <label>待辦內容
-          <input type="text" id="todoText" required placeholder="例如：換 Suica" maxlength="80" />
+          <input type="text" id="todoText" required placeholder="例如：買交通卡／換匯" maxlength="80" />
         </label>
         <label>備註（可選）
-          <input type="text" id="todoNote" placeholder="例如：機場／便利店都得" maxlength="120" />
+          <input type="text" id="todoNote" placeholder="例如：機場／便利店" maxlength="120" />
         </label>
         <div class="form-actions">
           <button type="button" class="btn btn-ghost" data-close-todo>取消</button>
@@ -481,10 +481,10 @@
           <input type="text" id="itinDateLabel" readonly />
         </label>
         <label>城市
-          <input type="text" id="itinCity" required placeholder="例如：東京、河口湖" maxlength="40" />
+          <input type="text" id="itinCity" required placeholder="例如：首爾、釜山" maxlength="40" />
         </label>
         <label>當日標題
-          <input type="text" id="itinTitle" required placeholder="例如：淺草・晴空塔" maxlength="60" />
+          <input type="text" id="itinTitle" required placeholder="例如：市中心散步・夜市" maxlength="60" />
         </label>
         <div class="itin-stops-head">
           <span class="itin-stops-label">行程地點</span>
@@ -522,6 +522,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=35"></script>
+  <script src="app.js?v=36"></script>
 </body>
 </html>

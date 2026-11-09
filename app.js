@@ -98,6 +98,7 @@
       selectedDate: DEMO_TODAY,
       calMonth: "2026-12",
       showMaps: true,
+      showRouteSketch: true,
     };
   }
 
@@ -123,6 +124,10 @@
     if (!Array.isArray(rec.pretrip)) rec.pretrip = seedData().pretrip;
     if (typeof rec.showMaps !== "boolean") rec.showMaps = true;
     if (typeof rec.showPretrip !== "boolean") rec.showPretrip = true;
+    if (typeof rec.showRouteSketch !== "boolean") {
+      const t = (rec.trip && rec.trip.title) || "";
+      rec.showRouteSketch = /東京/.test(t) && /富士/.test(t);
+    }
     if (!rec.selectedDate) rec.selectedDate = rec.trip.start || DEMO_TODAY;
     if (!rec.calMonth && rec.trip.start) rec.calMonth = String(rec.trip.start).slice(0, 7);
     if (!rec.calMonth) rec.calMonth = "2026-12";
@@ -229,12 +234,18 @@
   }
 
   function defaultPretripCopy() {
-    return seedData().pretrip.map((p) => ({
-      id: uid("p"),
-      text: p.text,
-      note: p.note || "",
-      done: false,
-    }));
+    // Destination-neutral checklist for new trips (seed Tokyo trip keeps its own)
+    const items = [
+      "護照／旅遊證件",
+      "機票／boarding pass",
+      "酒店確認電郵",
+      "當地現金／信用卡",
+      "eSIM／漫遊／Wi‑Fi",
+      "充電器／轉換插",
+      "藥／保險資料",
+      "行李額／禁運物品 check",
+    ];
+    return items.map((text) => ({ id: uid("p"), text, note: "", done: false }));
   }
 
   function createEmptyTrip(opts) {
@@ -261,8 +272,8 @@
         end,
         budget,
         companions,
-        jpyToHkd: (state && state.trip && state.trip.jpyToHkd) || 0.0523,
-        travelMode: "driving",
+        jpyToHkd: 0,
+        travelMode: "transit",
       },
       cities,
       dayTitles,
@@ -274,6 +285,7 @@
       selectedDate: start,
       calMonth: String(start).slice(0, 7),
       showMaps: true,
+      showRouteSketch: false,
     });
   }
 
@@ -751,7 +763,8 @@
   }
 
   function hkdToJpy(hkd) {
-    const rate = state.trip.jpyToHkd || 0.052;
+    const rate = Number(state.trip.jpyToHkd) || 0;
+    if (!rate) return 0;
     return Math.round(hkd / rate);
   }
 
@@ -1091,6 +1104,8 @@
     const end = parseDate(state.trip.end);
 
     document.getElementById("calTripTitle").textContent = state.trip.title;
+    const sketch = document.getElementById("routeSketchCard");
+    if (sketch) sketch.hidden = !state.showRouteSketch;
     document.getElementById("calTripSub").textContent =
       `${start.getMonth() + 1}月${start.getDate()}日 – ${end.getMonth() + 1}月${end.getDate()}日 · 共${tripDates().length}天 · 第${dayN}天（${fmtDateLong(today)}）`;
 
@@ -1098,7 +1113,10 @@
     const budget = Number(state.trip.budget) || 0;
     const pct = budget > 0 ? Math.min(100, Math.round((spent / budget) * 100)) : 0;
     document.getElementById("calSpentHkd").textContent = `HKD $${money(spent)}`;
-    document.getElementById("calSpentJpy").textContent = `約 ¥${money(hkdToJpy(spent))}`;
+    const fx = Number(state.trip.jpyToHkd) || 0;
+    document.getElementById("calSpentJpy").textContent = fx
+      ? `約當地 ${money(hkdToJpy(spent))}`
+      : "未設外幣匯率";
     document.getElementById("calProgressBar").style.width = pct + "%";
     document.getElementById("calBudgetPct").textContent = budget > 0 ? pct + "%" : "未設定";
     document.getElementById("calBudget").textContent = budget > 0 ? `HKD $${money(budget)}` : "未設定";
@@ -1308,7 +1326,11 @@
     document.getElementById("ledgerSummary").innerHTML = `
       <span>顯示 <strong>${list.length}</strong> 筆</span>
       <span>小計 <strong>HKD $${money(sum)}</strong></span>
-      <span>約 <strong>¥${money(hkdToJpy(sum))}</strong></span>`;
+      ${
+        Number(state.trip.jpyToHkd)
+          ? `<span>約當地 <strong>${money(hkdToJpy(sum))}</strong></span>`
+          : ""
+      }`;
 
     // Settle-up always uses ALL trip expenses (not day/cat filter)
     const balances = computePersonBalances();
@@ -1354,7 +1376,7 @@
         </div>
         <div>
           <div class="li-amt">HKD $${money(e.hkd)}
-            ${e.jpy ? `<div class="li-jpy">¥${money(e.jpy)}</div>` : ""}
+            ${e.jpy ? `<div class="li-jpy">當地 ${money(e.jpy)}</div>` : ""}
           </div>
           <div class="li-actions">
             <button type="button" class="btn btn-ghost sm" data-edit="${e.id}">編輯</button>
@@ -2500,7 +2522,7 @@
       state.trip.start = document.getElementById("setStart").value;
       state.trip.end = document.getElementById("setEnd").value;
       state.trip.budget = Number(document.getElementById("setBudget").value) || 0;
-      state.trip.jpyToHkd = Number(document.getElementById("setRate").value) || 0.052;
+      state.trip.jpyToHkd = Number(document.getElementById("setRate").value) || 0;
       state.trip.travelMode = normalizeTravelMode(
         document.getElementById("setTravelMode").value,
         false
