@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Noto+Sans+TC:wght@400;500;700&family=LXGW+WenKai+TC&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=4" />
+  <link rel="stylesheet" href="styles.css?v=5" />
 </head>
 <body>
   <div id="app">
@@ -147,7 +147,10 @@
             <div class="journal-card rough-card">
               <div class="journal-head">
                 <h3 class="section-h">今日手札</h3>
-                <button type="button" class="btn btn-ghost sm" id="btnEditDayItinerary">✎ 編輯當日行程</button>
+                <div class="journal-actions">
+                  <a class="btn btn-ghost sm map-link" id="btnDayMap" href="#" target="_blank" rel="noopener" hidden>🗺 地圖</a>
+                  <button type="button" class="btn btn-ghost sm" id="btnEditDayItinerary">✎ 編輯當日行程</button>
+                </div>
               </div>
               <div class="journal-summary" id="calJournalSummary">
                 <span class="j-title">Day 1 · 抵達成田・入住</span>
@@ -349,6 +352,10 @@
         <label>備註（可選）
           <input type="text" id="itinNote" placeholder="例如：傍晚上晴空塔睇夜景" maxlength="120" />
         </label>
+        <label>Google 地圖地點（可選）
+          <input type="text" id="itinMaps" placeholder="例如：淺草寺 或貼上 Google Maps 連結" maxlength="300" />
+        </label>
+        <p class="field-hint">填地名會開 Google Maps 搜尋；亦可直接貼完整地圖連結。</p>
         <div class="form-actions">
           <button type="button" class="btn btn-ghost" data-close-itinerary>取消</button>
           <button type="submit" class="btn btn-scan">儲存</button>
@@ -357,6 +364,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=4"></script>
+  <script src="app.js?v=5"></script>
 </body>
 </html>

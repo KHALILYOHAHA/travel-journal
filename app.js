@@ -48,9 +48,9 @@
         "2026-12-21": "手信・回港",
       },
       itinerary: {
-        "2026-12-16": { route: "淺草 → 晴空塔", note: "雷門・仲見世通，傍晚上晴空塔睇夜景" },
-        "2026-12-17": { route: "渋谷 → 原宿", note: "十字路口・竹下通・明治神宮散步" },
-        "2026-12-18": { route: "東京 → 河口湖", note: "前往富士山山腳，入住河口湖" },
+        "2026-12-16": { route: "淺草 → 晴空塔", note: "雷門・仲見世通，傍晚上晴空塔睇夜景", maps: "淺草寺" },
+        "2026-12-17": { route: "渋谷 → 原宿", note: "十字路口・竹下通・明治神宮散步", maps: "渋谷スクランブル交差点" },
+        "2026-12-18": { route: "東京 → 河口湖", note: "前往富士山山腳，入住河口湖", maps: "河口湖駅" },
       },
       todos: [
         { id: "t1", date: "2026-12-15", text: "換 Suica", done: false },
@@ -245,6 +245,18 @@
     document.getElementById("calJournalSummary").innerHTML = `
       <span class="j-title">Day ${dayN} · ${escapeHtml(dayTitle)}</span>
       <span class="j-meta">${dayExps.length} 筆記錄 · HKD $${money(spentOn(today))}</span>`;
+    const dayMapBtn = document.getElementById("btnDayMap");
+    if (dayMapBtn) {
+      const mq = dayMapsQuery(today);
+      const href = mapsUrl(mq);
+      if (href) {
+        dayMapBtn.href = href;
+        dayMapBtn.hidden = false;
+      } else {
+        dayMapBtn.removeAttribute("href");
+        dayMapBtn.hidden = true;
+      }
+    }
     const jl = document.getElementById("calJournalList");
     if (!dayExps.length) {
       jl.innerHTML = `<li><span class="muted">尚未記帳</span></li>`;
@@ -274,11 +286,19 @@
           const it = state.itinerary[d] || {};
           const route = it.route || state.cities[d] || "未設定路線";
           const note = it.note || state.dayTitles[d] || "";
+          const mq = dayMapsQuery(d);
+          const mapHref = mapsUrl(mq);
+          const mapBtn = mapHref
+            ? `<a class="todo-icon-btn next-map" href="${escapeHtml(mapHref)}" target="_blank" rel="noopener" data-itin-map aria-label="開 Google 地圖" title="地圖">🗺</a>`
+            : "";
           return `
           <div class="next-day" data-itin-date="${d}">
             <div class="next-date">${dt.getMonth() + 1}/${dt.getDate()}<small>星期${WEEKDAYS[dt.getDay()]}</small></div>
             <div class="next-info">${escapeHtml(route)}<div class="hint-line">${escapeHtml(note)}</div></div>
-            <button type="button" class="todo-icon-btn next-edit" data-itin-edit="${d}" aria-label="編輯行程" title="編輯">✎</button>
+            <div class="next-actions">
+              ${mapBtn}
+              <button type="button" class="todo-icon-btn next-edit" data-itin-edit="${d}" aria-label="編輯行程" title="編輯">✎</button>
+            </div>
           </div>`;
         })
         .join("");
@@ -539,6 +559,7 @@
     document.getElementById("itinTitle").value = state.dayTitles[d] || "";
     document.getElementById("itinRoute").value = it.route || "";
     document.getElementById("itinNote").value = it.note || "";
+    document.getElementById("itinMaps").value = it.maps || "";
     modal.hidden = false;
     document.getElementById("itinCity").focus();
   }
@@ -553,6 +574,21 @@
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;");
+  }
+
+  function mapsUrl(raw) {
+    const v = String(raw || "").trim();
+    if (!v) return "";
+    if (/^https?:\/\/(www\.)?(google\.[^/]+\/maps|maps\.google\.|maps\.app\.goo\.gl|goo\.gl\/maps)/i.test(v)) {
+      return v;
+    }
+    return "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(v);
+  }
+
+  function dayMapsQuery(d) {
+    const it = (state.itinerary && state.itinerary[d]) || {};
+    if (it.maps && String(it.maps).trim()) return String(it.maps).trim();
+    return "";
   }
 
   // ---------- Events ----------
@@ -785,6 +821,7 @@
       const title = document.getElementById("itinTitle").value.trim();
       const route = document.getElementById("itinRoute").value.trim();
       const note = document.getElementById("itinNote").value.trim();
+      const maps = document.getElementById("itinMaps").value.trim();
 
       if (!city || !title) {
         toast("請填城市同當日標題");
@@ -793,8 +830,8 @@
 
       state.cities[d] = city;
       state.dayTitles[d] = title;
-      if (route || note) {
-        state.itinerary[d] = { route: route, note: note };
+      if (route || note || maps) {
+        state.itinerary[d] = { route: route, note: note, maps: maps };
       } else {
         delete state.itinerary[d];
       }
@@ -809,6 +846,10 @@
     });
 
     document.getElementById("calNextDays").addEventListener("click", (e) => {
+      if (e.target.closest("[data-itin-map]")) {
+        e.stopPropagation();
+        return;
+      }
       const editBtn = e.target.closest("[data-itin-edit]");
       if (editBtn) {
         e.stopPropagation();
