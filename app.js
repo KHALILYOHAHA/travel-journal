@@ -977,18 +977,25 @@
     const showDayRoute = day.showDayRouteMap !== false;
     let html = "";
 
+    // 兩站：一張全日路線圖就夠。三站或以上：唔出全日總圖，改為每段各自一張（避免 1→2 同總圖重複）。
+    const twoStopDay = routePts.length === 2;
+    const multiLegDay = routePts.length >= 3;
     if (routePts.length >= 2) {
       const overviewMode = resolveTravelMode(stops[0] && stops[0].toNextMode);
-      const fullEmbed = showDayRoute ? mapsMultiDirectionsEmbedUrl(routePts, overviewMode) : "";
+      const fullEmbed = twoStopDay && showDayRoute ? mapsMultiDirectionsEmbedUrl(routePts, overviewMode) : "";
       const fullHref = mapsMultiDirectionsUrl(routePts, overviewMode);
       html += `
         <div class="day-route-card">
           <div class="day-route-head">
             <span class="day-route-title">今日路線</span>
             <span class="day-route-sub">${escapeHtml(routePts.join(" → "))}</span>
-            <button type="button" class="btn btn-ghost sm" data-toggle-day-route="${escapeHtml(date)}" aria-pressed="${showDayRoute ? "true" : "false"}">${
-              showDayRoute ? "隱藏路線圖" : "顯示路線圖"
-            }</button>
+            ${
+              twoStopDay
+                ? `<button type="button" class="btn btn-ghost sm" data-toggle-day-route="${escapeHtml(date)}" aria-pressed="${showDayRoute ? "true" : "false"}">${
+                    showDayRoute ? "隱藏路線圖" : "顯示路線圖"
+                  }</button>`
+                : ""
+            }
             ${
               fullHref
                 ? `<a class="btn btn-ghost sm" href="${escapeHtml(fullHref)}" target="_blank" rel="noopener">開路線</a>`
@@ -1014,13 +1021,8 @@
       const toggleBtn = `<button type="button" class="btn btn-ghost sm stop-map-toggle ${on ? "" : "is-maps-off"}" data-toggle-stop-map="${escapeHtml(s.id)}" aria-pressed="${on ? "true" : "false"}">${
         on ? "隱藏地圖" : "顯示地圖"
       }</button>`;
-      // One shared route map covers multi-stop days. Per-stop embed only when:
-      // - single stop day, or
-      // - user turns this stop on AND day route map is off (avoid duplicate route maps)
-      const embed =
-        on && (!multi || !showDayRoute)
-          ? mapsEmbedUrl(q)
-          : "";
+      // Place pin embed only on single-stop days (multi-stop days use route/leg maps).
+      const embed = on && !multi ? mapsEmbedUrl(q) : "";
       const mapBlock = embed
         ? `<div class="day-stop-map"><iframe title="${escapeHtml(s.place || "地圖")}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen src="${escapeHtml(embed)}"></iframe></div>`
         : "";
@@ -1050,10 +1052,9 @@
         const toQ = stopRouteQuery(next);
         const legMode = resolveTravelMode(s.toNextMode);
         const segHref = mapsDirectionsUrl(fromQ, toQ, legMode);
-        // 只有兩站時，全日路線圖已經係 1→2，唔好再重複。
-        // 三站或以上：每一段（例如 2→3）獨立顯示路線圖。
+        // 兩站：全日路線圖已涵蓋 1→2。三站+：每一段各自一張圖（含 1→2），跟出發站顯示／隱藏。
         const segEmbed =
-          stops.length >= 3 && on ? mapsDirectionsEmbedUrl(fromQ, toQ, legMode) : "";
+          multiLegDay && on ? mapsDirectionsEmbedUrl(fromQ, toQ, legMode) : "";
         if (segHref) {
           html += `
           <div class="day-leg">
