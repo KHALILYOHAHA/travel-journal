@@ -407,7 +407,7 @@ main { flex: 1; padding: 1.25rem 1rem 2.5rem; }
 }
 .cal-cell.empty { visibility: hidden; }
 .cal-cell .d { font-weight: 700; font-size: 0.85rem; }
-.cal-cell .city { font-size: 0.62rem; color: var(--ink-soft); line-height: 1.1; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cal-cell .city { font-size: 0.62rem; color: var(--ink-soft); line-height: 1.15; max-width: 100%; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; word-break: break-all; }
 .cal-cell .spend { font-size: 0.62rem; color: var(--blue-deep); font-weight: 600; }
 .cal-cell.in-trip {
   background: var(--blue-soft);

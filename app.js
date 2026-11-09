@@ -401,7 +401,7 @@
       const isSel = ds === state.selectedDate;
       const city = state.cities[ds] || "";
       const spend = inTrip ? spentOn(ds) : 0;
-      const shortCity = city.replace(/→.*$/, "").slice(0, 4);
+      const shortCity = city.replace(/→.*$/, "").slice(0, 8);
       cells.push(`
         <div class="cal-cell ${inTrip ? "in-trip" : ""} ${isToday ? "today" : ""} ${isSel && !isToday ? "selected" : ""}"
              data-date="${ds}" role="button" tabindex="0">
