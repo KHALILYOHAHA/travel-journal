@@ -325,14 +325,19 @@
                 )
                 .join("")}</div>`
             : `<div class="hint-line">${escapeHtml(title)}</div>`;
+          const routePts = stops.map(stopRouteQuery).filter(Boolean);
           const mq = dayMapsQuery(d);
-          const mapHref = mapsUrl(mq);
-          const embed = mapsEmbedUrl(mq);
+          const mapHref =
+            routePts.length >= 2 ? mapsMultiDirectionsUrl(routePts) : mapsUrl(mq);
+          const embed =
+            routePts.length >= 2
+              ? mapsMultiDirectionsEmbedUrl(routePts)
+              : mapsEmbedUrl(mq);
           const mapBtn = mapHref
             ? `<a class="todo-icon-btn next-map" href="${escapeHtml(mapHref)}" target="_blank" rel="noopener" data-itin-map aria-label="開 Google 地圖" title="地圖">🗺</a>`
             : "";
           const mapBlock = embed
-            ? `<div class="next-day-map"><iframe title="${escapeHtml(route)} 地圖" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen src="${escapeHtml(embed)}"></iframe></div>`
+            ? `<div class="next-day-map"><iframe title="${escapeHtml(route)} 路線" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen src="${escapeHtml(embed)}"></iframe></div>`
             : "";
           return `
           <div class="next-day" data-itin-date="${d}">
@@ -741,6 +746,68 @@
     return "";
   }
 
+  /** Place text suitable for directions (avoid raw maps URLs). */
+  function stopRouteQuery(stop) {
+    if (!stop) return "";
+    const maps = String(stop.maps || "").trim();
+    const place = String(stop.place || "").trim();
+    if (maps && !/^https?:\/\//i.test(maps)) return maps;
+    return place || "";
+  }
+
+  function mapsDirectionsEmbedUrl(from, to) {
+    const a = String(from || "").trim();
+    const b = String(to || "").trim();
+    if (!a || !b) return "";
+    return (
+      "https://maps.google.com/maps?saddr=" +
+      encodeURIComponent(a) +
+      "&daddr=" +
+      encodeURIComponent(b) +
+      "&hl=zh-TW&output=embed"
+    );
+  }
+
+  function mapsDirectionsUrl(from, to) {
+    const a = String(from || "").trim();
+    const b = String(to || "").trim();
+    if (!a || !b) return "";
+    return (
+      "https://www.google.com/maps/dir/?api=1&origin=" +
+      encodeURIComponent(a) +
+      "&destination=" +
+      encodeURIComponent(b)
+    );
+  }
+
+  function mapsMultiDirectionsEmbedUrl(places) {
+    const pts = (places || []).map((p) => String(p || "").trim()).filter(Boolean);
+    if (pts.length < 2) return "";
+    if (pts.length === 2) return mapsDirectionsEmbedUrl(pts[0], pts[1]);
+    const saddr = encodeURIComponent(pts[0]);
+    const daddr =
+      encodeURIComponent(pts[1]) +
+      pts
+        .slice(2)
+        .map((p) => "+to:" + encodeURIComponent(p))
+        .join("");
+    return "https://maps.google.com/maps?saddr=" + saddr + "&daddr=" + daddr + "&hl=zh-TW&output=embed";
+  }
+
+  function mapsMultiDirectionsUrl(places) {
+    const pts = (places || []).map((p) => String(p || "").trim()).filter(Boolean);
+    if (pts.length < 2) return "";
+    if (pts.length === 2) return mapsDirectionsUrl(pts[0], pts[1]);
+    let url =
+      "https://www.google.com/maps/dir/?api=1&origin=" +
+      encodeURIComponent(pts[0]) +
+      "&destination=" +
+      encodeURIComponent(pts[pts.length - 1]);
+    const mid = pts.slice(1, -1);
+    if (mid.length) url += "&waypoints=" + encodeURIComponent(mid.join("|"));
+    return url;
+  }
+
   function renderDayStops(date) {
     const el = document.getElementById("dayStopsList");
     if (!el) return;
@@ -749,18 +816,44 @@
       el.innerHTML = `<div class="day-stops-empty">未有地點 — 撳右上「＋ 加地點」開始排行程</div>`;
       return;
     }
-    el.innerHTML = stops
-      .map((s, i) => {
-        const q = stopMapsQuery(s);
-        const href = mapsUrl(q);
-        const embed = mapsEmbedUrl(q);
-        const mapLink = href
-          ? `<a class="todo-icon-btn" href="${escapeHtml(href)}" target="_blank" rel="noopener" aria-label="開地圖">🗺</a>`
-          : "";
-        const mapBlock = embed
-          ? `<div class="day-stop-map"><iframe title="${escapeHtml(s.place || "地圖")}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen src="${escapeHtml(embed)}"></iframe></div>`
-          : "";
-        return `
+
+    const routePts = stops.map(stopRouteQuery).filter(Boolean);
+    let html = "";
+
+    if (routePts.length >= 2) {
+      const fullEmbed = mapsMultiDirectionsEmbedUrl(routePts);
+      const fullHref = mapsMultiDirectionsUrl(routePts);
+      html += `
+        <div class="day-route-card">
+          <div class="day-route-head">
+            <span class="day-route-title">今日路線</span>
+            <span class="day-route-sub">${escapeHtml(routePts.join(" → "))}</span>
+            ${
+              fullHref
+                ? `<a class="btn btn-ghost sm" href="${escapeHtml(fullHref)}" target="_blank" rel="noopener">開路線</a>`
+                : ""
+            }
+          </div>
+          ${
+            fullEmbed
+              ? `<div class="day-stop-map day-route-map"><iframe title="今日路線" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen src="${escapeHtml(fullEmbed)}"></iframe></div>`
+              : ""
+          }
+        </div>`;
+    }
+
+    stops.forEach((s, i) => {
+      const q = stopMapsQuery(s);
+      const href = mapsUrl(q);
+      const mapLink = href
+        ? `<a class="todo-icon-btn" href="${escapeHtml(href)}" target="_blank" rel="noopener" aria-label="開地圖">🗺</a>`
+        : "";
+      // Single stop: show place pin. Multi: route overview covers it; still show pin only if alone.
+      const embed = routePts.length < 2 ? mapsEmbedUrl(q) : "";
+      const mapBlock = embed
+        ? `<div class="day-stop-map"><iframe title="${escapeHtml(s.place || "地圖")}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen src="${escapeHtml(embed)}"></iframe></div>`
+        : "";
+      html += `
         <div class="day-stop" data-stop-id="${escapeHtml(s.id)}">
           <div class="day-stop-top">
             <div>
@@ -778,8 +871,36 @@
           </div>
           ${mapBlock}
         </div>`;
-      })
-      .join("");
+
+      const next = stops[i + 1];
+      if (next) {
+        const fromQ = stopRouteQuery(s);
+        const toQ = stopRouteQuery(next);
+        const segEmbed = mapsDirectionsEmbedUrl(fromQ, toQ);
+        const segHref = mapsDirectionsUrl(fromQ, toQ);
+        if (segEmbed || segHref) {
+          html += `
+          <div class="day-leg">
+            <div class="day-leg-label">
+              <span>↗ 前往下一站</span>
+              <span class="day-leg-path">${escapeHtml(fromQ)} → ${escapeHtml(toQ)}</span>
+              ${
+                segHref
+                  ? `<a class="day-leg-open" href="${escapeHtml(segHref)}" target="_blank" rel="noopener">導航</a>`
+                  : ""
+              }
+            </div>
+            ${
+              segEmbed
+                ? `<div class="day-stop-map day-leg-map"><iframe title="${escapeHtml(fromQ)} 到 ${escapeHtml(toQ)}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen src="${escapeHtml(segEmbed)}"></iframe></div>`
+                : ""
+            }
+          </div>`;
+        }
+      }
+    });
+
+    el.innerHTML = html;
   }
 
   function emptyStop() {

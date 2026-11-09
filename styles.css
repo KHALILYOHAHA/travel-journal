@@ -959,3 +959,53 @@ a.map-link[hidden] { display: none !important; }
 @media (max-width: 520px) {
   .itin-stop-row2 { grid-template-columns: 1fr; }
 }
+
+.day-route-card {
+  padding: 0.55rem 0.65rem 0.7rem;
+  background: rgba(91, 124, 153, 0.08);
+  border: 1.5px solid var(--line);
+  border-radius: 12px;
+}
+.day-route-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.55rem;
+  margin-bottom: 0.45rem;
+}
+.day-route-title {
+  font-weight: 700;
+  font-size: 0.86rem;
+  color: var(--ink);
+}
+.day-route-sub {
+  flex: 1 1 10rem;
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+}
+.day-route-map iframe { height: 210px; }
+.day-leg {
+  margin: -0.15rem 0 0.15rem;
+  padding: 0.35rem 0.55rem 0.55rem;
+}
+.day-leg-label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.55rem;
+  margin-bottom: 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--blue, #5b7c99);
+}
+.day-leg-path {
+  flex: 1 1 8rem;
+  font-weight: 500;
+  color: var(--ink-soft);
+}
+.day-leg-open {
+  color: var(--coral);
+  text-decoration: none;
+  font-weight: 700;
+}
+.day-leg-map iframe { height: 160px; }
