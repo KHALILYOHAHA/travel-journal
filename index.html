@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Noto+Sans+TC:wght@400;500;700&family=LXGW+WenKai+TC&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=19" />
+  <link rel="stylesheet" href="styles.css?v=20" />
 </head>
 <body>
   <div id="app">
@@ -115,28 +115,6 @@
               <ul class="todo-list" id="calTodoList"></ul>
             </div>
 
-            <div class="expense-card rough-card">
-              <div class="expense-head">
-                <div class="expense-main">
-                  <div class="expense-big" id="calSpentHkd">HKD $0</div>
-                  <div class="expense-jpy" id="calSpentJpy">約 ¥0</div>
-                </div>
-                <div class="expense-actions">
-                  <button type="button" class="btn btn-ghost sm" id="btnScan">掃描</button>
-                  <button type="button" class="btn btn-ghost sm" id="btnAddExpense">＋ 記一筆</button>
-                </div>
-              </div>
-              <div class="budget-row">
-                <div class="progress-wrap">
-                  <div class="progress-bar" id="calProgressBar" style="width:0%"></div>
-                </div>
-                <span class="budget-pct" id="calBudgetPct">未設定</span>
-              </div>
-              <div class="budget-meta">
-                <span>預算 <strong id="calBudget">未設定</strong></span>
-                <span>今日 <strong id="calTodaySpend">HKD $0</strong></span>
-              </div>
-            </div>
           </article>
 
           <!-- Right page -->
@@ -188,6 +166,29 @@
             </div>
 
           </article>
+
+          <div class="expense-card expense-footer rough-card">
+            <div class="expense-head">
+              <div class="expense-main">
+                <div class="expense-big" id="calSpentHkd">HKD $0</div>
+                <div class="expense-jpy" id="calSpentJpy">約 ¥0</div>
+              </div>
+              <div class="expense-actions">
+                <button type="button" class="btn btn-ghost sm" id="btnScan">掃描</button>
+                <button type="button" class="btn btn-ghost sm" id="btnAddExpense">＋ 記一筆</button>
+              </div>
+            </div>
+            <div class="budget-row">
+              <div class="progress-wrap">
+                <div class="progress-bar" id="calProgressBar" style="width:0%"></div>
+              </div>
+              <span class="budget-pct" id="calBudgetPct">未設定</span>
+            </div>
+            <div class="budget-meta">
+              <span>預算 <strong id="calBudget">未設定</strong></span>
+              <span>今日 <strong id="calTodaySpend">HKD $0</strong></span>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -410,6 +411,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=19"></script>
+  <script src="app.js?v=20"></script>
 </body>
 </html>

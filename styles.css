@@ -1066,4 +1066,13 @@ a.map-link[hidden] { display: none !important; }
 }
 #pretripBody[hidden] { display: none !important; }
 
-.expense-card { margin-top: 0.75rem; }
+
+.expense-footer {
+  grid-column: 1 / -1;
+  margin: 0 1.2rem 1.2rem;
+  position: relative;
+  z-index: 1;
+}
+@media (max-width: 900px) {
+  .expense-footer { margin: 0 1rem 1rem; }
+}
