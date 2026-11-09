@@ -582,7 +582,7 @@
     opts = opts || {};
     const start = opts.start;
     const end = opts.end;
-    const title = (opts.title || "新行程").trim() || "新行程";
+    const title = (opts.title || "新旅程").trim() || "新旅程";
     let companions = Array.isArray(opts.companions) ? opts.companions.slice() : [];
     companions = companions.map((s) => String(s).trim()).filter(Boolean);
     if (!companions.length) companions = ["Khalil"];
@@ -1337,7 +1337,7 @@
     flushActiveToStore();
     const trips = store.trips || [];
     if (!trips.length) {
-      el.innerHTML = `<div class="empty-state">未有行程 — 撳「＋ 新行程」</div>`;
+      el.innerHTML = `<div class="empty-state">未有旅程 — 撳「＋ 新旅程」</div>`;
       return;
     }
     el.innerHTML = trips
@@ -1350,7 +1350,7 @@
         return `<article class="trip-card rough-card ${active ? "is-active" : ""}" data-trip-id="${escapeHtml(tr.id)}">
           <div class="trip-card-main">
             <div class="trip-card-title">
-              ${escapeHtml((tr.trip && tr.trip.title) || "未命名行程")}
+              ${escapeHtml((tr.trip && tr.trip.title) || "未命名旅程")}
               ${active ? '<span class="trip-active-badge">而家打開</span>' : ""}
             </div>
             <div class="trip-card-meta">${fmtTripRange(tr)} · 共 ${days} 天</div>
@@ -1397,7 +1397,7 @@
 
   function switchToTrip(tripId) {
     if (!tripId || tripId === store.activeTripId) {
-      toast("已經係呢個行程");
+      toast("已經係呢個旅程");
       return;
     }
     activateTrip(tripId, { flush: true, persist: true });
@@ -1410,18 +1410,18 @@
   function deleteTrip(tripId) {
     flushActiveToStore();
     if ((store.trips || []).length <= 1) {
-      toast("至少要留一個行程");
+      toast("至少要留一個旅程");
       return;
     }
     const tr = store.trips.find((t) => t.id === tripId);
-    const name = (tr && tr.trip && tr.trip.title) || "呢個行程";
+    const name = (tr && tr.trip && tr.trip.title) || "呢個旅程";
     if (!confirm("確定刪除「" + name + "」？入面開支／行程都會冇晒。")) return;
     store.trips = store.trips.filter((t) => t.id !== tripId);
     if (store.activeTripId === tripId) {
       activateTrip(store.trips[0].id, { flush: false, persist: false });
     }
     save();
-    toast("已刪除行程");
+    toast("已刪除旅程");
     renderAll();
     fillSettings();
     renderTrips();
@@ -2951,11 +2951,11 @@
     });
 
     document.getElementById("btnResetDemo").addEventListener("click", () => {
-      if (!confirm("重設示範資料？所有行程都會清走，只留返示範嗰個。")) return;
+      if (!confirm("重設示範資料？所有旅程都會清走，只留返示範嗰個。")) return;
       store = wrapSingleAsStore(seedData());
       activateTrip(store.activeTripId, { flush: false, persist: false });
       save();
-      toast("已重設行程 🎒");
+      toast("已重設旅程 🎒");
       switchTab("calendar");
       renderAll();
       fillSettings();
@@ -3181,7 +3181,7 @@
         store.trips.push(neu);
         activateTrip(neu.id, { flush: false, persist: true });
         closeTripModal();
-        toast("已建立行程 ✓");
+        toast("已建立旅程 ✓");
         renderAll();
         fillSettings();
         switchTab("calendar");
