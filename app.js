@@ -281,17 +281,94 @@
     };
   }
 
-  async function fetchHkabweRates() {
-    const res = await fetch(HKAB_RATES_URL, {
-      method: "GET",
-      headers: { Accept: "text/html" },
-      cache: "no-store",
+  function parseHkabweRatesFromMarkdown(md) {
+    const text = String(md || "");
+    const rates = {};
+    const re = /貨幣代號:\s*\n\s*([A-Z]{3})\s*\n[\s\S]*?賣出價:\s*\n\s*([0-9]+(?:\.[0-9]+)?)/g;
+    let m;
+    while ((m = re.exec(text))) {
+      const code = m[1];
+      const num = parseFloat(m[2]);
+      if (!Number.isFinite(num)) continue;
+      const opt = fxOption(code);
+      if (opt.none) continue;
+      rates[code] = opt.perHundred === false ? num : num / 100;
+    }
+    if (!Object.keys(rates).length) throw new Error("轉接頁解唔到 HKAB 賣出價");
+    const dateM = text.match(/以下是\s*\*?\*?([0-9]{4}-[0-9]{2}-[0-9]{2})\*?\*/);
+    const updM = text.match(/最後更新：\s*([0-9]{4}-[0-9]{2}-[0-9]{2}[^\n]*)/);
+    return {
+      rates,
+      rateDate: dateM ? dateM[1] : "",
+      updatedAt: updM ? updM[1].trim() : "",
+      fetchedAt: new Date().toISOString(),
+      source: "jina",
+    };
+  }
+
+  function parseHkabweRatesFromJson(obj) {
+    if (!obj || typeof obj !== "object" || !obj.rates) throw new Error("後備牌價檔格式唔啱");
+    const rates = {};
+    Object.keys(obj.rates).forEach((code) => {
+      const n = Number(obj.rates[code]);
+      if (Number.isFinite(n)) rates[code] = n;
     });
-    if (!res.ok) throw new Error("連線 HKAB 失敗（" + res.status + "）");
-    const html = await res.text();
-    const parsed = parseHkabweRatesFromHtml(html);
-    hkabweCache = parsed;
-    return parsed;
+    if (!Object.keys(rates).length) throw new Error("後備牌價檔冇匯率");
+    return {
+      rates,
+      rateDate: obj.rateDate || "",
+      updatedAt: obj.updatedAt || "",
+      fetchedAt: obj.fetchedAt || new Date().toISOString(),
+      source: "local",
+    };
+  }
+
+  async function fetchText(url, accept) {
+    const res = await fetch(url, {
+      method: "GET",
+      headers: { Accept: accept || "*/*" },
+      cache: "no-store",
+      mode: "cors",
+    });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    return res.text();
+  }
+
+  async function fetchHkabweRates() {
+    const errors = [];
+
+    // 1) Live via jina reader (HKAB itself blocks browser CORS)
+    try {
+      const md = await fetchText("https://r.jina.ai/" + HKAB_RATES_URL, "text/plain");
+      const parsed = parseHkabweRatesFromMarkdown(md);
+      hkabweCache = parsed;
+      return parsed;
+    } catch (err) {
+      errors.push("轉接：" + ((err && err.message) || err));
+    }
+
+    // 2) Direct HKAB HTML (works only if CORS ever opens)
+    try {
+      const html = await fetchText(HKAB_RATES_URL, "text/html");
+      const parsed = parseHkabweRatesFromHtml(html);
+      parsed.source = "hkab";
+      hkabweCache = parsed;
+      return parsed;
+    } catch (err) {
+      errors.push("直連：" + ((err && err.message) || err));
+    }
+
+    // 3) Same-origin fallback file shipped with the app
+    try {
+      const raw = await fetchText("hkab-rates.json?v=38", "application/json");
+      const parsed = parseHkabweRatesFromJson(JSON.parse(raw));
+      hkabweCache = parsed;
+      return parsed;
+    } catch (err) {
+      errors.push("後備：" + ((err && err.message) || err));
+    }
+
+    throw new Error("更新失敗（" + errors.join("；") + "）");
   }
 
   function applyFxRateToForm(code, rate, meta) {
@@ -2770,11 +2847,19 @@
           state.trip.fxFetchedAt = snap.fetchedAt || new Date().toISOString();
           save();
           renderAll();
+          const via =
+            snap.source === "local"
+              ? "本機後備"
+              : snap.source === "jina"
+                ? "HKAB 轉接"
+                : "HKAB";
           toast(
             "已更新 " +
               code +
               " 賣出價" +
               (snap.rateDate ? "（" + snap.rateDate + "）" : "") +
+              " · " +
+              via +
               " ✓"
           );
         } catch (err) {
