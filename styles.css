@@ -55,7 +55,7 @@ button, input, select { font: inherit; color: inherit; }
 }
 
 .brand { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; }
-.brand-icon { width: 32px; height: 32px; }
+.brand-icon { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; display: block; }
 .brand-title {
   font-family: var(--hand);
   font-size: 1.45rem;
