@@ -3,22 +3,23 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-      <link rel="icon" type="image/png" href="favicon-plane.png?v=34" />
+      <link rel="icon" type="image/png" href="favicon-plane.png?v=35" />
   <title>旅行手帳 · 東京 · 富士山</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Noto+Sans+TC:wght@400;500;700&family=LXGW+WenKai+TC&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=34" />
+  <link rel="stylesheet" href="styles.css?v=35" />
 </head>
 <body>
   <div id="app">
     <!-- Top nav -->
     <header class="topbar">
       <div class="brand">
-        <img class="brand-icon" src="brand-plane.png?v=34" width="32" height="32" alt="" />
+        <img class="brand-icon" src="brand-plane.png?v=35" width="32" height="32" alt="" />
         <span class="brand-title">旅行手帳</span>
       </div>
       <nav class="tabs" role="tablist">
+        <button class="tab" data-tab="trips" role="tab">行程</button>
         <button class="tab active" data-tab="calendar" role="tab">日曆</button>
         <button class="tab" data-tab="ledger" role="tab">帳本</button>
         <button class="tab" data-tab="charts" role="tab">圖表</button>
@@ -31,6 +32,18 @@
     </header>
 
     <main>
+      <!-- ===== 行程（多 trip） ===== -->
+      <section id="view-trips" class="view" role="tabpanel">
+        <div class="panel trips-panel">
+          <div class="panel-head">
+            <h2 class="panel-title">行程</h2>
+            <button type="button" class="btn btn-add sm" id="btnNewTrip">＋ 新行程</button>
+          </div>
+          <p class="trips-intro">可以加多個旅行；撳「打開」切換而家編輯緊嗰個。</p>
+          <div class="trips-list" id="tripsList"></div>
+        </div>
+      </section>
+
       <!-- ===== 日曆（開本手帳） ===== -->
       <section id="view-calendar" class="view active" role="tabpanel">
         <div class="notebook">
@@ -333,6 +346,37 @@
   <!-- Toast -->
   <div id="toast" class="toast" hidden></div>
 
+  <!-- New trip modal -->
+  <div id="tripModal" class="modal" hidden>
+    <div class="modal-backdrop" data-close-trip></div>
+    <div class="modal-card rough-card" role="dialog" aria-modal="true" aria-labelledby="tripModalTitle">
+      <h3 id="tripModalTitle">新行程</h3>
+      <form id="tripForm">
+        <label>行程名稱
+          <input type="text" id="newTripTitle" required placeholder="例如：大阪 · 京都" maxlength="40" />
+        </label>
+        <div class="form-row">
+          <label>出發日
+            <input type="date" id="newTripStart" required />
+          </label>
+          <label>回程日
+            <input type="date" id="newTripEnd" required />
+          </label>
+        </div>
+        <label>旅伴（逗號分隔，可選）
+          <input type="text" id="newTripCompanions" placeholder="Khalil、旅伴二" />
+        </label>
+        <label>預算（HKD，可選）
+          <input type="number" id="newTripBudget" min="0" step="any" placeholder="0" />
+        </label>
+        <div class="form-actions">
+          <button type="button" class="btn btn-ghost" data-close-trip>取消</button>
+          <button type="submit" class="btn btn-scan">建立並打開</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- Expense modal -->
   <div id="modal" class="modal" hidden>
     <div class="modal-backdrop" data-close></div>
@@ -478,6 +522,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=34"></script>
+  <script src="app.js?v=35"></script>
 </body>
 </html>

@@ -1,6 +1,7 @@
 /**
  * 旅行手帳 — hand-drawn travel journal SPA
  * Data persisted in localStorage under TRAVEL_JOURNAL_V2
+ * Multi-trip store (version 3); old single-trip blobs auto-migrate
  */
 (function () {
   "use strict";
@@ -100,32 +101,194 @@
     };
   }
 
-  function load() {
+  function isMultiTripStore(obj) {
+    return !!(obj && Array.isArray(obj.trips) && obj.trips.length);
+  }
+
+  function isSingleTripData(obj) {
+    return !!(obj && obj.trip && Array.isArray(obj.expenses) && !Array.isArray(obj.trips));
+  }
+
+  function normalizeTripRecord(rec) {
+    if (!rec || typeof rec !== "object") rec = seedData();
+    if (!rec.id) rec.id = uid("t");
+    if (!rec.trip) rec.trip = {};
+    if (!rec.trip.travelMode) rec.trip.travelMode = "driving";
+    if (!Array.isArray(rec.trip.companions)) rec.trip.companions = ["Khalil"];
+    if (!rec.cities || typeof rec.cities !== "object") rec.cities = {};
+    if (!rec.dayTitles || typeof rec.dayTitles !== "object") rec.dayTitles = {};
+    if (!rec.itinerary || typeof rec.itinerary !== "object") rec.itinerary = {};
+    if (!Array.isArray(rec.todos)) rec.todos = [];
+    if (!Array.isArray(rec.expenses)) rec.expenses = [];
+    if (!Array.isArray(rec.pretrip)) rec.pretrip = seedData().pretrip;
+    if (typeof rec.showMaps !== "boolean") rec.showMaps = true;
+    if (typeof rec.showPretrip !== "boolean") rec.showPretrip = true;
+    if (!rec.selectedDate) rec.selectedDate = rec.trip.start || DEMO_TODAY;
+    if (!rec.calMonth && rec.trip.start) rec.calMonth = String(rec.trip.start).slice(0, 7);
+    if (!rec.calMonth) rec.calMonth = "2026-12";
+    normalizeItinerary(rec);
+    return rec;
+  }
+
+  function wrapSingleAsStore(data) {
+    const rec = normalizeTripRecord(Object.assign({}, data || seedData()));
+    return { version: 3, activeTripId: rec.id, trips: [rec] };
+  }
+
+  function normalizeStore(raw) {
+    const storeObj = {
+      version: 3,
+      activeTripId: raw && raw.activeTripId,
+      trips: (raw && raw.trips ? raw.trips : []).map((t) => normalizeTripRecord(Object.assign({}, t))),
+    };
+    if (!storeObj.trips.length) {
+      return wrapSingleAsStore(seedData());
+    }
+    if (!storeObj.trips.some((t) => t.id === storeObj.activeTripId)) {
+      storeObj.activeTripId = storeObj.trips[0].id;
+    }
+    return storeObj;
+  }
+
+  function loadStore() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (parsed && parsed.trip && Array.isArray(parsed.expenses)) return parsed;
+        if (isMultiTripStore(parsed)) return normalizeStore(parsed);
+        if (isSingleTripData(parsed)) return wrapSingleAsStore(parsed);
+        // sync payload saved by mistake?
+        if (parsed && parsed.data) {
+          if (isMultiTripStore(parsed.data)) return normalizeStore(parsed.data);
+          if (isSingleTripData(parsed.data)) return wrapSingleAsStore(parsed.data);
+        }
       }
     } catch (_) {}
-    return seedData();
+    return wrapSingleAsStore(seedData());
+  }
+
+  function flushActiveToStore() {
+    if (!state || !store) return;
+    if (!state.id) state.id = store.activeTripId || uid("t");
+    const id = state.id;
+    const i = store.trips.findIndex((t) => t.id === id);
+    if (i >= 0) store.trips[i] = state;
+    else store.trips.push(state);
+    store.activeTripId = id;
+    store.version = 3;
   }
 
   function save() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    flushActiveToStore();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
     const meta = loadSyncMeta();
     meta.localUpdatedAt = new Date().toISOString();
     saveSyncMeta(meta);
     scheduleAutoSync();
   }
 
-  let state = load();
-  normalizeItinerary(state);
-  if (typeof state.showMaps !== "boolean") state.showMaps = true;
-  if (typeof state.showPretrip !== "boolean") state.showPretrip = true;
-  if (!Array.isArray(state.pretrip)) state.pretrip = seedData().pretrip;
-  if (!state.trip) state.trip = {};
-  if (!state.trip.travelMode) state.trip.travelMode = "driving";
+  function updateDocTitle() {
+    const title = (state && state.trip && state.trip.title) || "旅行手帳";
+    document.title = "旅行手帳 · " + title;
+  }
+
+  function activateTrip(tripId, opts) {
+    opts = opts || {};
+    if (opts.flush !== false) flushActiveToStore();
+    let trip = store.trips.find((t) => t.id === tripId);
+    if (!trip) trip = store.trips[0];
+    trip = normalizeTripRecord(trip);
+    store.activeTripId = trip.id;
+    state = trip;
+    // keep array reference in sync
+    const i = store.trips.findIndex((t) => t.id === trip.id);
+    if (i >= 0) store.trips[i] = state;
+    updateDocTitle();
+    if (opts.persist) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+      const meta = loadSyncMeta();
+      meta.localUpdatedAt = new Date().toISOString();
+      saveSyncMeta(meta);
+      scheduleAutoSync();
+    }
+  }
+
+  function datesBetween(start, end) {
+    const out = [];
+    if (!start || !end) return out;
+    const a = parseDate(start);
+    const b = parseDate(end);
+    if (Number.isNaN(a.getTime()) || Number.isNaN(b.getTime()) || a > b) return out;
+    for (let d = new Date(a); d <= b; d.setDate(d.getDate() + 1)) {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      out.push(y + "-" + m + "-" + day);
+    }
+    return out;
+  }
+
+  function defaultPretripCopy() {
+    return seedData().pretrip.map((p) => ({
+      id: uid("p"),
+      text: p.text,
+      note: p.note || "",
+      done: false,
+    }));
+  }
+
+  function createEmptyTrip(opts) {
+    opts = opts || {};
+    const start = opts.start;
+    const end = opts.end;
+    const title = (opts.title || "新行程").trim() || "新行程";
+    let companions = Array.isArray(opts.companions) ? opts.companions.slice() : [];
+    companions = companions.map((s) => String(s).trim()).filter(Boolean);
+    if (!companions.length) companions = ["Khalil"];
+    companions = companions.filter((v, i, a) => a.indexOf(v) === i);
+    const budget = Number(opts.budget) || 0;
+    const cities = {};
+    const dayTitles = {};
+    datesBetween(start, end).forEach((d) => {
+      cities[d] = "";
+      dayTitles[d] = "";
+    });
+    return normalizeTripRecord({
+      id: uid("t"),
+      trip: {
+        title,
+        start,
+        end,
+        budget,
+        companions,
+        jpyToHkd: (state && state.trip && state.trip.jpyToHkd) || 0.0523,
+        travelMode: "driving",
+      },
+      cities,
+      dayTitles,
+      itinerary: {},
+      todos: [],
+      pretrip: defaultPretripCopy(),
+      showPretrip: true,
+      expenses: [],
+      selectedDate: start,
+      calMonth: String(start).slice(0, 7),
+      showMaps: true,
+    });
+  }
+
+  function tripExpenseTotal(tripRec) {
+    return (tripRec.expenses || []).reduce((s, e) => s + (Number(e.hkd) || 0), 0);
+  }
+
+  function tripDayCount(tripRec) {
+    if (!tripRec || !tripRec.trip) return 0;
+    return datesBetween(tripRec.trip.start, tripRec.trip.end).length;
+  }
+
+  let store = loadStore();
+  let state = null;
+  activateTrip(store.activeTripId, { flush: false, persist: false });
 
   // ---------- Cloud sync (GitHub Gist) + local backup ----------
   let autoSyncTimer = null;
@@ -186,10 +349,11 @@
   }
 
   function buildSyncPayload() {
+    flushActiveToStore();
     return {
-      version: 2,
+      version: 3,
       updatedAt: new Date().toISOString(),
-      data: state,
+      data: store,
     };
   }
 
@@ -284,18 +448,16 @@
   }
 
   function applyJournalData(data) {
-    if (!data || !data.trip || !Array.isArray(data.expenses)) {
-      throw new Error("JSON 格式唔啱（需要 trip 同 expenses）");
+    if (isMultiTripStore(data)) {
+      store = normalizeStore(data);
+    } else if (isSingleTripData(data)) {
+      store = wrapSingleAsStore(data);
+    } else {
+      throw new Error("JSON 格式唔啱（需要 trips，或舊版 trip + expenses）");
     }
-    state = data;
-    normalizeItinerary(state);
-    if (typeof state.showMaps !== "boolean") state.showMaps = true;
-    if (typeof state.showPretrip !== "boolean") state.showPretrip = true;
-    if (!Array.isArray(state.pretrip)) state.pretrip = seedData().pretrip;
-    if (!state.trip) state.trip = {};
-    if (!state.trip.travelMode) state.trip.travelMode = "driving";
+    activateTrip(store.activeTripId, { flush: false, persist: false });
     // write without re-triggering auto-sync loop mid-import
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
   }
 
   async function gistCreate(token, payload, isPublic) {
@@ -472,7 +634,7 @@
       }
       let parsed = JSON.parse(content);
       let data = parsed;
-      if (parsed && parsed.data && parsed.data.trip) data = parsed.data;
+      if (parsed && parsed.data) data = parsed.data;
       const cloudUpdated = (parsed && parsed.updatedAt) || null;
       if (onlyIfNewer) {
         const localTs = meta.localUpdatedAt ? Date.parse(meta.localUpdatedAt) : 0;
@@ -546,9 +708,9 @@
       try {
         const parsed = JSON.parse(reader.result);
         let data = parsed;
-        if (parsed && parsed.data && parsed.data.trip) data = parsed.data;
-        if (!data || !data.trip || !Array.isArray(data.expenses)) {
-          toast("JSON 格式唔啱（需要 trip 同 expenses）");
+        if (parsed && parsed.data) data = parsed.data;
+        if (!(isMultiTripStore(data) || isSingleTripData(data))) {
+          toast("JSON 格式唔啱（需要 trips，或舊版 trip + expenses）");
           return;
         }
         if (!confirm("匯入會覆蓋呢部機嘅行程資料，確定？")) return;
@@ -796,6 +958,7 @@
     document.querySelectorAll(".view").forEach((v) => {
       v.classList.toggle("active", v.id === "view-" + name);
     });
+    if (name === "trips") renderTrips();
     if (name === "ledger") renderLedger();
     if (name === "charts") renderCharts();
     if (name === "settings") fillSettings();
@@ -807,7 +970,118 @@
     const comps = state.trip.companions || [];
     document.getElementById("topCompanions").textContent = comps.join("、") || "—";
     document.getElementById("topTripChip").textContent = state.trip.title;
+    updateDocTitle();
   }
+
+  // ---------- Trips (multi-trip) ----------
+  function fmtTripRange(tripRec) {
+    const t = tripRec.trip || {};
+    if (!t.start || !t.end) return "—";
+    try {
+      const a = parseDate(t.start);
+      const b = parseDate(t.end);
+      return a.getMonth() + 1 + "月" + a.getDate() + "日 – " + (b.getMonth() + 1) + "月" + b.getDate() + "日";
+    } catch (_) {
+      return t.start + " – " + t.end;
+    }
+  }
+
+  function renderTrips() {
+    const el = document.getElementById("tripsList");
+    if (!el) return;
+    flushActiveToStore();
+    const trips = store.trips || [];
+    if (!trips.length) {
+      el.innerHTML = `<div class="empty-state">未有行程 — 撳「＋ 新行程」</div>`;
+      return;
+    }
+    el.innerHTML = trips
+      .map((tr) => {
+        const active = tr.id === store.activeTripId;
+        const comps = (tr.trip && tr.trip.companions) || [];
+        const days = tripDayCount(tr);
+        const spent = tripExpenseTotal(tr);
+        const compText = comps.length ? escapeHtml(comps.join("、")) : "—";
+        return `<article class="trip-card rough-card ${active ? "is-active" : ""}" data-trip-id="${escapeHtml(tr.id)}">
+          <div class="trip-card-main">
+            <div class="trip-card-title">
+              ${escapeHtml((tr.trip && tr.trip.title) || "未命名行程")}
+              ${active ? '<span class="trip-active-badge">而家打開</span>' : ""}
+            </div>
+            <div class="trip-card-meta">${fmtTripRange(tr)} · 共 ${days} 天</div>
+            <div class="trip-card-meta">開支 HKD $${money(spent)} · 旅伴 ${compText}</div>
+          </div>
+          <div class="trip-card-actions">
+            <button type="button" class="btn btn-scan sm" data-open-trip="${escapeHtml(tr.id)}" ${
+              active ? "disabled" : ""
+            }>${active ? "使用中" : "打開"}</button>
+            <button type="button" class="btn btn-danger sm" data-del-trip="${escapeHtml(tr.id)}">刪除</button>
+          </div>
+        </article>`;
+      })
+      .join("");
+  }
+
+  function openTripModal() {
+    const modal = document.getElementById("tripModal");
+    if (!modal) return;
+    const today = focusDate();
+    document.getElementById("newTripTitle").value = "";
+    document.getElementById("newTripStart").value = today;
+    // default end = start + 6 days
+    try {
+      const d = parseDate(today);
+      d.setDate(d.getDate() + 6);
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      document.getElementById("newTripEnd").value = y + "-" + m + "-" + day;
+    } catch (_) {
+      document.getElementById("newTripEnd").value = today;
+    }
+    document.getElementById("newTripCompanions").value = "Khalil";
+    document.getElementById("newTripBudget").value = "";
+    modal.hidden = false;
+    document.getElementById("newTripTitle").focus();
+  }
+
+  function closeTripModal() {
+    const modal = document.getElementById("tripModal");
+    if (modal) modal.hidden = true;
+  }
+
+  function switchToTrip(tripId) {
+    if (!tripId || tripId === store.activeTripId) {
+      toast("已經係呢個行程");
+      return;
+    }
+    activateTrip(tripId, { flush: true, persist: true });
+    toast("已切換： " + ((state.trip && state.trip.title) || ""));
+    renderAll();
+    fillSettings();
+    switchTab("calendar");
+  }
+
+  function deleteTrip(tripId) {
+    flushActiveToStore();
+    if ((store.trips || []).length <= 1) {
+      toast("至少要留一個行程");
+      return;
+    }
+    const tr = store.trips.find((t) => t.id === tripId);
+    const name = (tr && tr.trip && tr.trip.title) || "呢個行程";
+    if (!confirm("確定刪除「" + name + "」？入面開支／行程都會冇晒。")) return;
+    store.trips = store.trips.filter((t) => t.id !== tripId);
+    if (store.activeTripId === tripId) {
+      activateTrip(store.trips[0].id, { flush: false, persist: false });
+    }
+    save();
+    toast("已刪除行程");
+    renderAll();
+    fillSettings();
+    renderTrips();
+  }
+
 
   // ---------- Calendar view ----------
   function renderCalendar() {
@@ -2246,14 +2520,14 @@
     });
 
     document.getElementById("btnResetDemo").addEventListener("click", () => {
-      if (!confirm("重設示範資料？你手動加嘅記錄會冇晒。")) return;
-      localStorage.removeItem(STORAGE_KEY);
-      state = seedData();
-      normalizeItinerary(state);
+      if (!confirm("重設示範資料？所有行程都會清走，只留返示範嗰個。")) return;
+      store = wrapSingleAsStore(seedData());
+      activateTrip(store.activeTripId, { flush: false, persist: false });
       save();
       toast("已重設行程 🎒");
       switchTab("calendar");
       renderAll();
+      fillSettings();
     });
 
     document.getElementById("btnEditDayItinerary").addEventListener("click", () => {
@@ -2434,13 +2708,75 @@
         closeTodoModal();
         closePretripModal();
         closeItineraryModal();
+        closeTripModal();
       }
     });
+
+    const btnNewTrip = document.getElementById("btnNewTrip");
+    if (btnNewTrip) btnNewTrip.addEventListener("click", () => openTripModal());
+
+    const tripModal = document.getElementById("tripModal");
+    if (tripModal) {
+      tripModal.addEventListener("click", (e) => {
+        if (e.target.matches("[data-close-trip]") || e.target.classList.contains("modal-backdrop")) {
+          closeTripModal();
+        }
+      });
+    }
+
+    const tripForm = document.getElementById("tripForm");
+    if (tripForm) {
+      tripForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const title = document.getElementById("newTripTitle").value.trim();
+        const start = document.getElementById("newTripStart").value;
+        const end = document.getElementById("newTripEnd").value;
+        if (!title || !start || !end) {
+          toast("請填齊名稱同日期");
+          return;
+        }
+        if (parseDate(start) > parseDate(end)) {
+          toast("回程日唔可以早過出發日");
+          return;
+        }
+        const comps = document
+          .getElementById("newTripCompanions")
+          .value.split(/[,、，]/)
+          .map((s) => s.trim())
+          .filter(Boolean);
+        const budget = Number(document.getElementById("newTripBudget").value) || 0;
+        flushActiveToStore();
+        const neu = createEmptyTrip({ title, start, end, companions: comps, budget });
+        store.trips.push(neu);
+        activateTrip(neu.id, { flush: false, persist: true });
+        closeTripModal();
+        toast("已建立行程 ✓");
+        renderAll();
+        fillSettings();
+        switchTab("calendar");
+      });
+    }
+
+    const tripsList = document.getElementById("tripsList");
+    if (tripsList) {
+      tripsList.addEventListener("click", (e) => {
+        const openBtn = e.target.closest("[data-open-trip]");
+        const delBtn = e.target.closest("[data-del-trip]");
+        if (openBtn) {
+          switchToTrip(openBtn.getAttribute("data-open-trip"));
+        } else if (delBtn) {
+          deleteTrip(delBtn.getAttribute("data-del-trip"));
+        }
+      });
+    }
   }
 
   function renderAll() {
     renderHeader();
     renderCalendar();
+    if (document.getElementById("view-trips") && document.getElementById("view-trips").classList.contains("active")) {
+      renderTrips();
+    }
     // keep ledger/charts fresh if visible
     if (document.getElementById("view-ledger").classList.contains("active")) renderLedger();
     if (document.getElementById("view-charts").classList.contains("active")) renderCharts();

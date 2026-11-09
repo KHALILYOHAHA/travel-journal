@@ -620,6 +620,75 @@ main { flex: 1; padding: 1.25rem 1rem 2.5rem; }
   font-size: 1.2rem;
 }
 
+/* ----- Trips (multi-trip) ----- */
+.trips-panel .panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.35rem;
+}
+.trips-intro {
+  margin: 0 0 1rem;
+  font-size: 0.88rem;
+  color: var(--ink-soft);
+}
+.trips-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.trip-card {
+  display: flex;
+  gap: 0.85rem;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 0.9rem 1rem;
+  flex-wrap: wrap;
+}
+.trip-card.is-active {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(107,155,209,.22);
+  background: #f7fafc;
+}
+.trip-card-main { flex: 1; min-width: 180px; }
+.trip-card-title {
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--ink);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.25rem;
+}
+.trip-active-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0.12rem 0.45rem;
+  border-radius: 999px;
+  background: #d4e4f5;
+  color: #3a6a9a;
+  border: 1px solid #a8c4e0;
+}
+.trip-card-meta {
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+  margin-top: 0.15rem;
+  line-height: 1.35;
+}
+.trip-card-actions {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.trip-card-actions .btn[disabled] {
+  opacity: 0.65;
+  cursor: default;
+}
+
 /* ----- Settle-up (帳本) ----- */
 .settle-card {
   margin: 0 0 1rem;
@@ -1037,7 +1106,7 @@ main { flex: 1; padding: 1.25rem 1rem 2.5rem; }
 @media (max-width: 520px) {
   .topbar { padding: 0.5rem 0.75rem; }
   .tabs { order: 3; width: 100%; justify-content: stretch; }
-  .tab { flex: 1; padding: 0.4rem 0.35rem; font-size: 0.85rem; }
+  .tab { flex: 1; padding: 0.4rem 0.25rem; font-size: 0.78rem; }
   .form-row { grid-template-columns: 1fr; }
   .action-row { grid-template-columns: 1fr; }
   .cal-cell { min-height: 48px; }
