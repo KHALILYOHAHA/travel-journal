@@ -805,3 +805,38 @@ a.map-link[hidden] { display: none !important; }
   color: var(--ink-soft);
   line-height: 1.35;
 }
+
+.day-map-wrap {
+  margin: 0.55rem 0 0.75rem;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1.5px solid var(--line);
+  background: #e8eef3;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.4);
+}
+.day-map-wrap[hidden] { display: none !important; }
+.day-map-frame {
+  display: block;
+  width: 100%;
+  height: 220px;
+  border: 0;
+  background: #dfe7ee;
+}
+.next-day-map {
+  grid-column: 1 / -1;
+  margin-top: 0.15rem;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px dashed var(--line);
+  background: #e8eef3;
+}
+.next-day-map iframe {
+  display: block;
+  width: 100%;
+  height: 140px;
+  border: 0;
+}
+@media (max-width: 640px) {
+  .day-map-frame { height: 200px; }
+  .next-day-map iframe { height: 130px; }
+}

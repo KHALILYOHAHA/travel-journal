@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Noto+Sans+TC:wght@400;500;700&family=LXGW+WenKai+TC&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=5" />
+  <link rel="stylesheet" href="styles.css?v=6" />
 </head>
 <body>
   <div id="app">
@@ -155,6 +155,9 @@
               <div class="journal-summary" id="calJournalSummary">
                 <span class="j-title">Day 1 · 抵達成田・入住</span>
                 <span class="j-meta">0 筆記錄 · HKD $0</span>
+              </div>
+              <div class="day-map-wrap" id="dayMapWrap" hidden>
+                <iframe id="dayMapFrame" class="day-map-frame" title="當日 Google 地圖" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>
               </div>
               <ul class="journal-list" id="calJournalList"></ul>
             </div>
@@ -364,6 +367,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=5"></script>
+  <script src="app.js?v=6"></script>
 </body>
 </html>

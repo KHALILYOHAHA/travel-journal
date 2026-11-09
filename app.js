@@ -245,16 +245,30 @@
     document.getElementById("calJournalSummary").innerHTML = `
       <span class="j-title">Day ${dayN} · ${escapeHtml(dayTitle)}</span>
       <span class="j-meta">${dayExps.length} 筆記錄 · HKD $${money(spentOn(today))}</span>`;
+    const mqToday = dayMapsQuery(today);
+    const hrefToday = mapsUrl(mqToday);
+    const embedToday = mapsEmbedUrl(mqToday);
     const dayMapBtn = document.getElementById("btnDayMap");
     if (dayMapBtn) {
-      const mq = dayMapsQuery(today);
-      const href = mapsUrl(mq);
-      if (href) {
-        dayMapBtn.href = href;
+      if (hrefToday) {
+        dayMapBtn.href = hrefToday;
         dayMapBtn.hidden = false;
       } else {
         dayMapBtn.removeAttribute("href");
         dayMapBtn.hidden = true;
+      }
+    }
+    const mapWrap = document.getElementById("dayMapWrap");
+    const mapFrame = document.getElementById("dayMapFrame");
+    if (mapWrap && mapFrame) {
+      if (embedToday) {
+        if (mapFrame.getAttribute("src") !== embedToday) {
+          mapFrame.src = embedToday;
+        }
+        mapWrap.hidden = false;
+      } else {
+        mapFrame.removeAttribute("src");
+        mapWrap.hidden = true;
       }
     }
     const jl = document.getElementById("calJournalList");
@@ -288,8 +302,12 @@
           const note = it.note || state.dayTitles[d] || "";
           const mq = dayMapsQuery(d);
           const mapHref = mapsUrl(mq);
+          const embed = mapsEmbedUrl(mq);
           const mapBtn = mapHref
             ? `<a class="todo-icon-btn next-map" href="${escapeHtml(mapHref)}" target="_blank" rel="noopener" data-itin-map aria-label="開 Google 地圖" title="地圖">🗺</a>`
+            : "";
+          const mapBlock = embed
+            ? `<div class="next-day-map"><iframe title="${escapeHtml(route)} 地圖" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen src="${escapeHtml(embed)}"></iframe></div>`
             : "";
           return `
           <div class="next-day" data-itin-date="${d}">
@@ -299,6 +317,7 @@
               ${mapBtn}
               <button type="button" class="todo-icon-btn next-edit" data-itin-edit="${d}" aria-label="編輯行程" title="編輯">✎</button>
             </div>
+            ${mapBlock}
           </div>`;
         })
         .join("");
@@ -583,6 +602,38 @@
       return v;
     }
     return "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(v);
+  }
+
+  function mapsEmbedUrl(raw) {
+    const v = String(raw || "").trim();
+    if (!v) return "";
+    if (/^https?:\/\//i.test(v)) {
+      if (/\/maps\/embed/i.test(v) || /[?&]output=embed\b/i.test(v)) return v;
+      try {
+        const u = new URL(v);
+        const host = u.hostname.replace(/^www\./, "");
+        if (host === "maps.app.goo.gl" || host === "goo.gl") return "";
+        if (host.includes("google.") || host.startsWith("maps.google.")) {
+          const q =
+            u.searchParams.get("q") ||
+            u.searchParams.get("query") ||
+            (u.pathname.match(/\/place\/([^/]+)/) || [])[1] ||
+            (u.pathname.match(/\/search\/([^/]+)/) || [])[1];
+          if (q) {
+            return (
+              "https://maps.google.com/maps?q=" +
+              encodeURIComponent(decodeURIComponent(q.replace(/\+/g, " "))) +
+              "&z=14&output=embed"
+            );
+          }
+          // Fall back: append output=embed when possible
+          u.searchParams.set("output", "embed");
+          return u.toString();
+        }
+      } catch (_) {}
+      return "";
+    }
+    return "https://maps.google.com/maps?q=" + encodeURIComponent(v) + "&z=14&output=embed";
   }
 
   function dayMapsQuery(d) {
