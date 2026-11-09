@@ -935,3 +935,27 @@ a.map-link[hidden] { display: none !important; }
   color: var(--ink-soft);
 }
 .next-stop-line strong { color: var(--ink); font-weight: 600; }
+
+.day-stop-time {
+  display: inline-block;
+  min-width: 3.1rem;
+  margin-right: 0.25rem;
+  padding: 0.05rem 0.35rem;
+  border-radius: 999px;
+  background: rgba(224, 122, 95, 0.15);
+  color: var(--coral);
+  font-size: 0.78rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.day-stop-idx { color: var(--ink-soft); font-weight: 600; }
+.itin-stop-row2 {
+  display: grid;
+  grid-template-columns: 7.5rem 1fr;
+  gap: 0.5rem;
+  align-items: end;
+}
+.itin-place-field { min-width: 0; }
+@media (max-width: 520px) {
+  .itin-stop-row2 { grid-template-columns: 1fr; }
+}

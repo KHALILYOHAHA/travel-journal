@@ -50,20 +50,20 @@
       itinerary: {
         "2026-12-16": {
           stops: [
-            { id: "s16a", place: "淺草寺", note: "雷門・仲見世通", maps: "淺草寺" },
-            { id: "s16b", place: "晴空塔", note: "傍晚睇夜景", maps: "東京晴空塔" },
+            { id: "s16a", time: "10:00", place: "淺草寺", note: "雷門・仲見世通", maps: "淺草寺" },
+            { id: "s16b", time: "17:30", place: "晴空塔", note: "傍晚睇夜景", maps: "東京晴空塔" },
           ],
         },
         "2026-12-17": {
           stops: [
-            { id: "s17a", place: "渋谷十字路口", note: "渋谷スクランブル交差点", maps: "渋谷スクランブル交差点" },
-            { id: "s17b", place: "竹下通", note: "原宿逛街", maps: "竹下通り" },
-            { id: "s17c", place: "明治神宮", note: "散步", maps: "明治神宮" },
+            { id: "s17a", time: "11:00", place: "渋谷十字路口", note: "渋谷スクランブル交差点", maps: "渋谷スクランブル交差点" },
+            { id: "s17b", time: "13:30", place: "竹下通", note: "原宿逛街", maps: "竹下通り" },
+            { id: "s17c", time: "16:00", place: "明治神宮", note: "散步", maps: "明治神宮" },
           ],
         },
         "2026-12-18": {
           stops: [
-            { id: "s18a", place: "河口湖駅", note: "由東京前往富士山山腳", maps: "河口湖駅" },
+            { id: "s18a", time: "09:00", place: "河口湖駅", note: "由東京前往富士山山腳", maps: "河口湖駅" },
           ],
         },
       },
@@ -307,7 +307,7 @@
       nextEl.innerHTML = next
         .map((d) => {
           const dt = parseDate(d);
-          const stops = dayStops(d);
+          const stops = sortStopsByTime(dayStops(d));
           const title = state.dayTitles[d] || state.cities[d] || "未設定行程";
           const route =
             stops.length > 0
@@ -317,7 +317,9 @@
             ? `<div class="next-stops">${stops
                 .map(
                   (s, i) =>
-                    `<div class="next-stop-line"><strong>${i + 1}. ${escapeHtml(
+                    `<div class="next-stop-line"><strong>${
+                      s.time ? escapeHtml(s.time) + " " : i + 1 + ". "
+                    }${escapeHtml(
                       s.place || "地點"
                     )}</strong>${s.note ? " · " + escapeHtml(s.note) : ""}</div>`
                 )
@@ -629,6 +631,7 @@
     const o = s && typeof s === "object" ? s : {};
     return {
       id: o.id || uid("s"),
+      time: String(o.time || "").trim(),
       place: String(o.place || o.route || "").trim(),
       note: String(o.note || "").trim(),
       maps: String(o.maps || "").trim(),
@@ -651,6 +654,7 @@
       places.forEach((p, i) => {
         stops.push({
           id: uid("s"),
+          time: "",
           place: p,
           note: i === 0 ? String(raw.note || "").trim() : "",
           maps: i === 0 ? String(raw.maps || "").trim() || p : p,
@@ -659,6 +663,7 @@
     } else if (raw.note || raw.maps) {
       stops.push({
         id: uid("s"),
+        time: "",
         place: String(raw.maps || "行程").trim(),
         note: String(raw.note || "").trim(),
         maps: String(raw.maps || "").trim(),
@@ -739,7 +744,7 @@
   function renderDayStops(date) {
     const el = document.getElementById("dayStopsList");
     if (!el) return;
-    const stops = dayStops(date);
+    const stops = sortStopsByTime(dayStops(date));
     if (!stops.length) {
       el.innerHTML = `<div class="day-stops-empty">未有地點 — 撳右上「＋ 加地點」開始排行程</div>`;
       return;
@@ -759,7 +764,11 @@
         <div class="day-stop" data-stop-id="${escapeHtml(s.id)}">
           <div class="day-stop-top">
             <div>
-              <div class="day-stop-name">${i + 1}. ${escapeHtml(s.place || "未命名地點")}</div>
+              <div class="day-stop-name">${
+                s.time
+                  ? `<span class="day-stop-time">${escapeHtml(s.time)}</span>`
+                  : `<span class="day-stop-idx">${i + 1}.</span>`
+              } ${escapeHtml(s.place || "未命名地點")}</div>
               ${s.note ? `<div class="day-stop-note">${escapeHtml(s.note)}</div>` : ""}
             </div>
             <div class="next-actions">
@@ -774,7 +783,23 @@
   }
 
   function emptyStop() {
-    return { id: uid("s"), place: "", note: "", maps: "" };
+    return { id: uid("s"), time: "", place: "", note: "", maps: "" };
+  }
+
+  function fmtStopTime(t) {
+    const v = String(t || "").trim();
+    return v;
+  }
+
+  function sortStopsByTime(stops) {
+    return (stops || []).slice().sort((a, b) => {
+      const ta = String(a.time || "");
+      const tb = String(b.time || "");
+      if (ta && tb) return ta.localeCompare(tb);
+      if (ta) return -1;
+      if (tb) return 1;
+      return 0;
+    });
   }
 
   function renderItinStopFields(stops) {
@@ -789,9 +814,14 @@
             <span class="itin-stop-idx">地點 ${i + 1}</span>
             <button type="button" class="todo-icon-btn danger" data-remove-stop="${escapeHtml(s.id)}" aria-label="刪除此地點" title="刪除">✕</button>
           </div>
-          <label>名稱
-            <input type="text" data-f="place" value="${escapeHtml(s.place)}" placeholder="例如：淺草寺" maxlength="60" required />
-          </label>
+          <div class="itin-stop-row2">
+            <label>時間（可選）
+              <input type="time" data-f="time" value="${escapeHtml(s.time)}" />
+            </label>
+            <label class="itin-place-field">名稱
+              <input type="text" data-f="place" value="${escapeHtml(s.place)}" placeholder="例如：淺草寺" maxlength="60" required />
+            </label>
+          </div>
           <label>備註（可選）
             <input type="text" data-f="note" value="${escapeHtml(s.note)}" placeholder="例如：傍晚去" maxlength="120" />
           </label>
@@ -808,17 +838,19 @@
     if (!box) return [];
     return Array.from(box.querySelectorAll(".itin-stop"))
       .map((row) => {
+        const time = (row.querySelector('[data-f="time"]') || {}).value || "";
         const place = (row.querySelector('[data-f="place"]') || {}).value || "";
         const note = (row.querySelector('[data-f="note"]') || {}).value || "";
         const maps = (row.querySelector('[data-f="maps"]') || {}).value || "";
         return {
           id: row.getAttribute("data-stop-row") || uid("s"),
+          time: time.trim(),
           place: place.trim(),
           note: note.trim(),
           maps: maps.trim(),
         };
       })
-      .filter((s) => s.place || s.note || s.maps);
+      .filter((s) => s.place || s.note || s.maps || s.time);
   }
 
   // ---------- Events ----------
@@ -1090,7 +1122,7 @@
       state.cities[d] = city;
       state.dayTitles[d] = title;
       if (stops.length) {
-        state.itinerary[d] = { stops };
+        state.itinerary[d] = { stops: sortStopsByTime(stops) };
       } else {
         delete state.itinerary[d];
       }
