@@ -920,7 +920,10 @@
         const fromQ = stopRouteQuery(s);
         const toQ = stopRouteQuery(next);
         const segHref = mapsDirectionsUrl(fromQ, toQ);
-        // No second route iframe — day route map already shows 1→2→…
+        // 只有兩站時，全日路線圖已經係 1→2，唔好再重複。
+        // 三站或以上：每一段（例如 2→3）獨立顯示路線圖。
+        const segEmbed =
+          stops.length >= 3 && on ? mapsDirectionsEmbedUrl(fromQ, toQ) : "";
         if (segHref) {
           html += `
           <div class="day-leg">
@@ -929,6 +932,11 @@
               <span class="day-leg-path">${escapeHtml(fromQ)} → ${escapeHtml(toQ)}</span>
               <a class="day-leg-open" href="${escapeHtml(segHref)}" target="_blank" rel="noopener">導航</a>
             </div>
+            ${
+              segEmbed
+                ? `<div class="day-stop-map day-leg-map"><iframe title="${escapeHtml(fromQ)} 到 ${escapeHtml(toQ)}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen src="${escapeHtml(segEmbed)}"></iframe></div>`
+                : ""
+            }
           </div>`;
         }
       }
