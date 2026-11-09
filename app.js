@@ -8,6 +8,8 @@
   const STORAGE_KEY = "TRAVEL_JOURNAL_V2";
   const SYNC_KEY = "TRAVEL_JOURNAL_SYNC";
   const GIST_FILENAME = "travel-journal-v2.json";
+  /** Shared public gist — phones can pull with zero setup */
+  const DEFAULT_PUBLIC_GIST_ID = "bd9a99b1449d9288d1b075d485d17c11";
   const GITHUB_API = "https://api.github.com";
   const GITHUB_API_HEADERS_BASE = {
     Accept: "application/vnd.github+json",
@@ -132,10 +134,10 @@
   function defaultSyncMeta() {
     return {
       token: "",
-      gistId: "",
+      gistId: DEFAULT_PUBLIC_GIST_ID,
+      publicGist: true,
       autoSync: false,
-      autoPullOnOpen: false,
-      publicGist: false,
+      autoPullOnOpen: true,
       localUpdatedAt: null,
       lastPushAt: null,
       lastPullAt: null,
@@ -147,12 +149,19 @@
       const raw = localStorage.getItem(SYNC_KEY);
       if (raw) {
         const p = JSON.parse(raw);
+        const gistId =
+          (typeof p.gistId === "string" && p.gistId.trim()) ||
+          DEFAULT_PUBLIC_GIST_ID;
+        const autoPullOnOpen =
+          typeof p.autoPullOnOpen === "boolean" ? p.autoPullOnOpen : true;
+        const publicGist =
+          typeof p.publicGist === "boolean" ? p.publicGist : true;
         return {
           token: typeof p.token === "string" ? p.token : "",
-          gistId: typeof p.gistId === "string" ? p.gistId : "",
+          gistId: gistId,
           autoSync: !!p.autoSync,
-          autoPullOnOpen: !!p.autoPullOnOpen,
-          publicGist: !!p.publicGist,
+          autoPullOnOpen: autoPullOnOpen,
+          publicGist: publicGist,
           localUpdatedAt: p.localUpdatedAt || null,
           lastPushAt: p.lastPushAt || null,
           lastPullAt: p.lastPullAt || null,
@@ -493,10 +502,11 @@
 
   function autoPullOnOpen() {
     const meta = loadSyncMeta();
-    // Public gist: gistId + autoPull is enough (no token). Private still needs token.
-    if (!meta.autoPullOnOpen || !meta.gistId) return;
-    if (!meta.token && meta.publicGist === false) {
-      // still try unauthenticated; public gists work even if flag unset locally
+    // Default public gist: open app pulls with zero setup (no token / no form fill).
+    if (!meta.autoPullOnOpen) return;
+    if (!meta.gistId) {
+      meta.gistId = DEFAULT_PUBLIC_GIST_ID;
+      saveSyncMeta(meta);
     }
     pullFromCloud({ silent: true, onlyIfNewer: true });
   }
