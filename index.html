@@ -3,19 +3,19 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-      <link rel="icon" type="image/png" href="favicon-plane.png?v=32" />
+      <link rel="icon" type="image/png" href="favicon-plane.png?v=33" />
   <title>旅行手帳 · 東京 · 富士山</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Noto+Sans+TC:wght@400;500;700&family=LXGW+WenKai+TC&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=32" />
+  <link rel="stylesheet" href="styles.css?v=33" />
 </head>
 <body>
   <div id="app">
     <!-- Top nav -->
     <header class="topbar">
       <div class="brand">
-        <img class="brand-icon" src="brand-plane.png?v=32" width="32" height="32" alt="" />
+        <img class="brand-icon" src="brand-plane.png?v=33" width="32" height="32" alt="" />
         <span class="brand-title">旅行手帳</span>
       </div>
       <nav class="tabs" role="tablist">
@@ -206,6 +206,7 @@
             </div>
           </div>
           <div class="ledger-summary" id="ledgerSummary"></div>
+          <div class="settle-card rough-card" id="ledgerSettle"></div>
           <div class="ledger-list" id="ledgerList"></div>
         </div>
       </section>
@@ -229,6 +230,10 @@
             <div class="chart-card rough-card budget-chart">
               <h3 class="section-h">預算進度</h3>
               <div class="donut-stats" id="budgetStats"></div>
+            </div>
+            <div class="chart-card rough-card person-chart">
+              <h3 class="section-h">每人開支</h3>
+              <div id="personSpend"></div>
             </div>
           </div>
         </div>
@@ -364,6 +369,11 @@
             <select id="expPayer"></select>
           </label>
         </div>
+        <fieldset class="split-field">
+          <legend>邊個夾</legend>
+          <div id="expSplit" class="split-checks"></div>
+          <p class="field-hint">預設全隊夾；可以剔走唔使分攤嘅人</p>
+        </fieldset>
         <label>備註
           <input type="text" id="expNote" placeholder="可選" />
         </label>
@@ -451,6 +461,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=32"></script>
+  <script src="app.js?v=33"></script>
 </body>
 </html>

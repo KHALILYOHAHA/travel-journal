@@ -603,6 +603,131 @@
       .reduce((s, e) => s + (Number(e.hkd) || 0), 0);
   }
 
+  /** Who shares this expense; empty/missing → all companions */
+  function expenseSplitWith(e) {
+    const all = (state.trip.companions || []).slice();
+    if (Array.isArray(e.splitWith) && e.splitWith.length) return e.splitWith.slice();
+    return all;
+  }
+
+  /** Per-person paid / fair share / net across ALL trip expenses */
+  function computePersonBalances() {
+    const companions = (state.trip.companions || []).slice();
+    const nameSet = new Set(companions);
+    state.expenses.forEach((e) => {
+      if (e.payer) nameSet.add(e.payer);
+      expenseSplitWith(e).forEach((n) => nameSet.add(n));
+    });
+    const people = companions.length ? companions.slice() : [];
+    nameSet.forEach((n) => {
+      if (!people.includes(n)) people.push(n);
+    });
+
+    const paid = {};
+    const share = {};
+    people.forEach((n) => {
+      paid[n] = 0;
+      share[n] = 0;
+    });
+
+    state.expenses.forEach((e) => {
+      const hkd = Number(e.hkd) || 0;
+      if (e.payer) {
+        if (paid[e.payer] === undefined) paid[e.payer] = 0;
+        paid[e.payer] += hkd;
+      }
+      const split = expenseSplitWith(e);
+      if (!split.length) return;
+      const each = hkd / split.length;
+      split.forEach((n) => {
+        if (share[n] === undefined) share[n] = 0;
+        share[n] += each;
+      });
+    });
+
+    return people.map((name) => {
+      const p = paid[name] || 0;
+      const s = share[name] || 0;
+      return { name, paid: p, share: s, net: p - s };
+    });
+  }
+
+  /** Greedy settle: largest debtor → largest creditor */
+  function settleTransfers(balances) {
+    const creditors = balances
+      .filter((b) => b.net > 0.5)
+      .map((b) => ({ name: b.name, amt: b.net }))
+      .sort((a, b) => b.amt - a.amt);
+    const debtors = balances
+      .filter((b) => b.net < -0.5)
+      .map((b) => ({ name: b.name, amt: -b.net }))
+      .sort((a, b) => b.amt - a.amt);
+    const transfers = [];
+    let i = 0;
+    let j = 0;
+    while (i < debtors.length && j < creditors.length) {
+      const pay = Math.min(debtors[i].amt, creditors[j].amt);
+      if (pay >= 0.5) {
+        transfers.push({ from: debtors[i].name, to: creditors[j].name, amount: pay });
+      }
+      debtors[i].amt -= pay;
+      creditors[j].amt -= pay;
+      if (debtors[i].amt < 0.5) i++;
+      if (creditors[j].amt < 0.5) j++;
+    }
+    return transfers;
+  }
+
+  function renderSettleHtml(balances, transfers, emptyHint) {
+    if (!balances.length) {
+      return `<p class="hint settle-empty">${emptyHint || "未設定旅伴 — 去設定加埋先"}</p>`;
+    }
+    if (!state.expenses.length) {
+      return `<p class="hint settle-empty">暫未有開支記錄</p>`;
+    }
+    const rows = balances
+      .map((b) => {
+        let balLabel;
+        let balClass;
+        if (b.net > 0.5) {
+          balLabel = `應收回 $${money(b.net)}`;
+          balClass = "net-pos";
+        } else if (b.net < -0.5) {
+          balLabel = `應夾返 $${money(-b.net)}`;
+          balClass = "net-neg";
+        } else {
+          balLabel = "已平帳";
+          balClass = "net-zero";
+        }
+        return `<div class="settle-row">
+          <div class="settle-name">${escapeHtml(b.name)}</div>
+          <div class="settle-nums">
+            <span><em>墊付</em> $${money(b.paid)}</span>
+            <span><em>應分攤</em> $${money(b.share)}</span>
+            <span class="settle-net ${balClass}"><em>結餘</em> ${balLabel}</span>
+          </div>
+        </div>`;
+      })
+      .join("");
+    let how = "";
+    if (transfers.length) {
+      how =
+        `<div class="settle-how"><div class="settle-how-title">要點樣夾</div><ul class="settle-transfers">` +
+        transfers
+          .map(
+            (t) =>
+              `<li><strong>${escapeHtml(t.from)}</strong> → <strong>${escapeHtml(t.to)}</strong>　HKD $${money(
+                t.amount
+              )}</li>`
+          )
+          .join("") +
+        `</ul></div>`;
+    } else {
+      how = `<div class="settle-how"><p class="hint">大家已經平帳 ✓</p></div>`;
+    }
+    return rows + how;
+  }
+
   function dayIndex(date) {
     const start = parseDate(state.trip.start);
     const d = parseDate(date);
@@ -892,18 +1017,34 @@
       <span>小計 <strong>HKD $${money(sum)}</strong></span>
       <span>約 <strong>¥${money(hkdToJpy(sum))}</strong></span>`;
 
+    // Settle-up always uses ALL trip expenses (not day/cat filter)
+    const balances = computePersonBalances();
+    const transfers = settleTransfers(balances);
+    const settleEl = document.getElementById("ledgerSettle");
+    if (settleEl) {
+      settleEl.innerHTML =
+        `<h3 class="section-h">每人結算</h3>` +
+        `<p class="settle-sub">以全行程開支計算（唔受上面篩選影響）</p>` +
+        renderSettleHtml(balances, transfers);
+    }
+
     const el = document.getElementById("ledgerList");
     if (!list.length) {
       el.innerHTML = `<div class="empty-state">呢個篩選暫時冇記錄 ✍️</div>`;
       return;
     }
     el.innerHTML = list
-      .map(
-        (e) => `
+      .map((e) => {
+        const split = expenseSplitWith(e);
+        const splitNote =
+          split.length && split.length < (state.trip.companions || []).length
+            ? ` · 夾：${escapeHtml(split.join("、"))}`
+            : "";
+        return `
       <div class="ledger-item" data-id="${e.id}">
         <div>
           <div class="li-title"><span class="cat-pill cat-${e.cat}">${e.cat}</span>${escapeHtml(e.title)}</div>
-          <div class="li-meta">${fmtDate(e.date)} · Day ${dayIndex(e.date)} · ${escapeHtml(e.payer || "—")}${
+          <div class="li-meta">${fmtDate(e.date)} · Day ${dayIndex(e.date)} · ${escapeHtml(e.payer || "—")}畀${splitNote}${
           e.note ? " · " + escapeHtml(e.note) : ""
         }</div>
         </div>
@@ -916,8 +1057,8 @@
             <button type="button" class="btn btn-danger" data-del="${e.id}">刪除</button>
           </div>
         </div>
-      </div>`
-      )
+      </div>`;
+      })
       .join("");
   }
 
@@ -963,6 +1104,75 @@
       <div><div class="stat-val">${pct}%</div><div class="stat-label">預算用量</div></div>
       <div class="stat-bar-big"><div class="stat-bar-fill" style="width:${pct}%"></div></div>`;
     }
+
+    renderPersonSpendChart();
+  }
+
+  function renderPersonSpendChart() {
+    const el = document.getElementById("personSpend");
+    if (!el) return;
+    const balances = computePersonBalances();
+    const transfers = settleTransfers(balances);
+    if (!balances.length) {
+      el.innerHTML = `<p class="hint">未設定旅伴</p>`;
+      return;
+    }
+    if (!state.expenses.length) {
+      el.innerHTML = `<p class="hint">暫未有開支記錄</p>`;
+      return;
+    }
+    const max = Math.max(1, ...balances.map((b) => Math.max(b.paid, b.share)));
+    const bars = balances
+      .map((b) => {
+        const paidH = Math.round((b.paid / max) * 100);
+        const shareH = Math.round((b.share / max) * 100);
+        let netTxt;
+        let netClass;
+        if (b.net > 0.5) {
+          netTxt = `+$${money(b.net)} 應收回`;
+          netClass = "net-pos";
+        } else if (b.net < -0.5) {
+          netTxt = `−$${money(-b.net)} 應夾返`;
+          netClass = "net-neg";
+        } else {
+          netTxt = "已平帳";
+          netClass = "net-zero";
+        }
+        return `<div class="person-spend-row">
+          <div class="person-spend-head">
+            <strong>${escapeHtml(b.name)}</strong>
+            <span class="settle-net ${netClass}">${netTxt}</span>
+          </div>
+          <div class="person-dual-bars">
+            <div class="person-bar-line">
+              <span class="pb-label">墊付</span>
+              <div class="pb-track"><div class="pb-fill pb-paid" style="width:${paidH}%"></div></div>
+              <span class="pb-amt">$${money(b.paid)}</span>
+            </div>
+            <div class="person-bar-line">
+              <span class="pb-label">應分攤</span>
+              <div class="pb-track"><div class="pb-fill pb-share" style="width:${shareH}%"></div></div>
+              <span class="pb-amt">$${money(b.share)}</span>
+            </div>
+          </div>
+        </div>`;
+      })
+      .join("");
+    let how = "";
+    if (transfers.length) {
+      how =
+        `<div class="settle-how compact"><div class="settle-how-title">要點樣夾</div><ul class="settle-transfers">` +
+        transfers
+          .map(
+            (t) =>
+              `<li><strong>${escapeHtml(t.from)}</strong> → <strong>${escapeHtml(t.to)}</strong>　HKD $${money(
+                t.amount
+              )}</li>`
+          )
+          .join("") +
+        `</ul></div>`;
+    }
+    el.innerHTML = bars + how;
   }
 
   function drawPie(byCat) {
@@ -1034,8 +1244,9 @@
   // ---------- Modal ----------
   function openExpenseModal(expense) {
     const modal = document.getElementById("modal");
+    const companions = state.trip.companions || [];
     const payerSel = document.getElementById("expPayer");
-    payerSel.innerHTML = state.trip.companions
+    payerSel.innerHTML = companions
       .map((c) => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`)
       .join("");
 
@@ -1046,8 +1257,32 @@
     document.getElementById("expHkd").value = expense ? expense.hkd : "";
     document.getElementById("expJpy").value = expense && expense.jpy ? expense.jpy : "";
     document.getElementById("expCat").value = expense ? expense.cat : "飲食";
-    document.getElementById("expPayer").value = expense ? expense.payer : state.trip.companions[0];
+    document.getElementById("expPayer").value = expense ? expense.payer : companions[0] || "";
     document.getElementById("expNote").value = expense ? expense.note || "" : "";
+
+    const checked = new Set(
+      expense && Array.isArray(expense.splitWith) && expense.splitWith.length
+        ? expense.splitWith
+        : companions
+    );
+    const splitBox = document.getElementById("expSplit");
+    if (splitBox) {
+      if (!companions.length) {
+        splitBox.innerHTML = `<p class="hint">未有旅伴 — 去設定加先</p>`;
+      } else {
+        splitBox.innerHTML = companions
+          .map(
+            (c) => `
+          <label class="split-check">
+            <input type="checkbox" name="expSplitWith" value="${escapeHtml(c)}" ${
+              checked.has(c) ? "checked" : ""
+            } />
+            <span>${escapeHtml(c)}</span>
+          </label>`
+          )
+          .join("");
+      }
+    }
 
     modal.hidden = false;
     document.getElementById("expTitle").focus();
@@ -1674,6 +1909,11 @@
     document.getElementById("expenseForm").addEventListener("submit", (e) => {
       e.preventDefault();
       const id = document.getElementById("expId").value;
+      const splitChecked = [...document.querySelectorAll('input[name="expSplitWith"]:checked')].map(
+        (el) => el.value
+      );
+      const allCompanions = state.trip.companions || [];
+      const splitWith = splitChecked.length ? splitChecked : allCompanions.slice();
       const entry = {
         id: id || uid("e"),
         date: document.getElementById("expDate").value,
@@ -1684,6 +1924,7 @@
           : null,
         cat: document.getElementById("expCat").value,
         payer: document.getElementById("expPayer").value,
+        splitWith,
         note: document.getElementById("expNote").value.trim(),
       };
       if (!entry.jpy && entry.hkd) entry.jpy = hkdToJpy(entry.hkd);
